@@ -290,7 +290,8 @@ EXPORTED void mbname_set_domain(mbname_t *mbname, const char *domain)
 {
     _mbdirty(mbname);
     free(mbname->domain);
-    mbname->domain = strcmpsafe(domain, config_defdomain) ? xstrdupnull(domain) : NULL;
+    mbname->domain =
+        strcmpsafe(domain, config_defdomain) ? xstrdupnull(domain) : NULL;
 }
 
 EXPORTED void mbname_set_boxes(mbname_t *mbname, const strarray_t *boxes)
@@ -421,83 +422,6 @@ EXPORTED mbname_t *mbname_dup(const mbname_t *orig)
     return mbname;
 }
 
-static void _append_intbuf(struct buf *buf, const char *val)
-{
-    const char *p;
-    for (p = val; *p; p++) {
-        switch (*p) {
-        case '.':
-            buf_putc(buf, '^');
-            break;
-        default:
-            buf_putc(buf, *p);
-            break;
-        }
-    }
-}
-
-static strarray_t *_array_from_intname(strarray_t *a)
-{
-    int i;
-    for (i = 0; i < strarray_size(a); i++) {
-        char *p;
-        for (p = a->data[i]; *p; p++) {
-            switch (*p) {
-            case '^':
-                *p = '.';
-                break;
-            default:
-                break;
-            }
-        }
-    }
-    return a;
-}
-
-static void _append_extbuf(const struct namespace *ns, struct buf *buf, const char *val)
-{
-    const char *p;
-    int isuhs = (ns->hier_sep == '/');
-    for (p = val; *p; p++) {
-        switch (*p) {
-        case '.':
-            if (isuhs) buf_putc(buf, '.');
-            else buf_putc(buf, '^');
-            break;
-        default:
-            buf_putc(buf, *p);
-            break;
-        }
-    }
-}
-
-static strarray_t *_array_from_extname(const struct namespace *ns, strarray_t *a)
-{
-    int i;
-    int isuhs = (ns->hier_sep == '/');
-    for (i = 0; i < strarray_size(a); i++) {
-        char *p;
-        for (p = a->data[i]; *p; p++) {
-            switch (*p) {
-            case '^':
-                if (isuhs) goto err;
-                else *p = '.';
-                break;
-            case '/':
-                goto err;
-            default:
-                break;
-            }
-        }
-    }
-    return a;
-
-err:
-    strarray_free(a);
-    return NULL;
-}
-
-
 EXPORTED mbname_t *mbname_from_intname(const char *intname)
 {
     mbname_t *mbname = xzmalloc(sizeof(mbname_t));
@@ -523,19 +447,21 @@ EXPORTED mbname_t *mbname_from_intname(const char *intname)
         intname = p+1;
     }
 
-    mbname->boxes = _array_from_intname(strarray_split(intname, ".", 0));
+    mbname->boxes = strarray_split(intname, INT_HIERSEP_STR, 0);
 
     if (!strarray_size(mbname->boxes))
         return mbname;
 
-    if (strarray_size(mbname->boxes) > 2 && !strcmpsafe(strarray_nth(mbname->boxes, 0), dp)) {
+    if (strarray_size(mbname->boxes) > 2 &&
+        !strcmpsafe(strarray_nth(mbname->boxes, 0), dp)) {
         free(strarray_shift(mbname->boxes));
         char *delval = strarray_pop(mbname->boxes);
         mbname->is_deleted = strtoul(delval, NULL, 16);
         free(delval);
     }
 
-    if (strarray_size(mbname->boxes) > 1 && !strcmpsafe(strarray_nth(mbname->boxes, 0), "user")) {
+    if (strarray_size(mbname->boxes) > 1 &&
+        !strcmpsafe(strarray_nth(mbname->boxes, 0), "user")) {
         free(strarray_shift(mbname->boxes));
         mbname->localpart = strarray_shift(mbname->boxes);
     }
@@ -543,7 +469,9 @@ EXPORTED mbname_t *mbname_from_intname(const char *intname)
     return mbname;
 }
 
-EXPORTED mbname_t *mbname_from_extname(const char *extname, const struct namespace *ns, const char *userid)
+EXPORTED mbname_t *mbname_from_extname(const char *extname,
+                                       const struct namespace *ns,
+                                       const char *userid)
 {
     int crossdomains = config_getswitch(IMAPOPT_CROSSDOMAINS) && !ns->isadmin;
     int cdother = config_getswitch(IMAPOPT_CROSSDOMAINS_ONLYOTHER);
@@ -592,7 +520,7 @@ EXPORTED mbname_t *mbname_from_extname(const char *extname, const struct namespa
         mbname->domain = xstrdupnull(mbname_domain(userparts));
     }
 
-    mbname->boxes = _array_from_extname(ns, strarray_split(mbname->extname, sepstr, 0));
+    mbname->boxes = strarray_split(mbname->extname, sepstr, 0);
 
     if (p) *p = '@'; // rebuild extname for later use
 
@@ -808,20 +736,20 @@ EXPORTED const char *mbname_intname(const mbname_t *mbname)
     }
 
     if (mbname->localpart) {
-        if (sep) buf_putc(&buf, '.');
-        buf_appendcstr(&buf, "user.");
-        _append_intbuf(&buf, mbname->localpart);
+        if (sep) buf_putc(&buf, INT_HIERSEP_CHAR);
+        buf_appendcstr(&buf, INT_USER_PREFIX);
+        buf_appendcstr(&buf, mbname->localpart);
         sep = 1;
     }
 
     for (i = 0; i < strarray_size(boxes); i++) {
-        if (sep) buf_putc(&buf, '.');
-        _append_intbuf(&buf, strarray_nth(boxes, i));
+        if (sep) buf_putc(&buf, INT_HIERSEP_CHAR);
+        buf_appendcstr(&buf, strarray_nth(boxes, i));
         sep = 1;
     }
 
     if (mbname->is_deleted) {
-        if (sep) buf_putc(&buf, '.');
+        if (sep) buf_putc(&buf, INT_HIERSEP_CHAR);
         buf_printf(&buf, "%X", (unsigned)mbname->is_deleted);
         sep = 1;
     }
@@ -1030,20 +958,20 @@ EXPORTED const char *mbname_extname(const mbname_t *mbname, const struct namespa
             }
             buf_appendcstr(&buf, sp);
             buf_putc(&buf, ns->hier_sep);
-            _append_extbuf(ns, &buf, toplevel);
+            buf_appendcstr(&buf, toplevel);
             /* domains go on the top level folder */
             if (crossdomains) {
                 const char *domain = mbname_domain(mbname);
                 if (!cdother || strcmpsafe(domain, mbname_domain(userparts))) {
                     if (!domain) domain = config_defdomain;
                     buf_putc(&buf, '@');
-                    _append_extbuf(ns, &buf, domain);
+                    buf_appendcstr(&buf, domain);
                 }
             }
             int i;
             for (i = 1; i < strarray_size(boxes); i++) {
                 buf_putc(&buf, ns->hier_sep);
-                _append_extbuf(ns, &buf, strarray_nth(boxes, i));
+                buf_appendcstr(&buf, strarray_nth(boxes, i));
             }
             goto end;
         }
@@ -1052,19 +980,19 @@ EXPORTED const char *mbname_extname(const mbname_t *mbname, const struct namespa
         if (strcmpsafe(mbname_userid(mbname), userid)) {
             buf_appendcstr(&buf, up);
             buf_putc(&buf, ns->hier_sep);
-            _append_extbuf(ns, &buf, mbname_localpart(mbname));
+            buf_appendcstr(&buf, mbname_localpart(mbname));
             if (crossdomains) {
                 const char *domain = mbname_domain(mbname);
                 if (!cdother || strcmpsafe(domain, mbname_domain(userparts))) {
                     if (!domain) domain = config_defdomain;
                     buf_putc(&buf, '@');
-                    _append_extbuf(ns, &buf, domain);
+                    buf_appendcstr(&buf, domain);
                 }
             }
             int i;
             for (i = 0; i < strarray_size(boxes); i++) {
                 buf_putc(&buf, ns->hier_sep);
-                _append_extbuf(ns, &buf, strarray_nth(boxes, i));
+                buf_appendcstr(&buf, strarray_nth(boxes, i));
             }
             goto end;
         }
@@ -1092,12 +1020,12 @@ EXPORTED const char *mbname_extname(const mbname_t *mbname, const struct namespa
             buf_putc(&buf, ns->hier_sep);
         }
 
-         _append_extbuf(ns, &buf, toplevel);
+         buf_appendcstr(&buf, toplevel);
 
         int i;
         for (i = 1; i < strarray_size(boxes); i++) {
            buf_putc(&buf, ns->hier_sep);
-            _append_extbuf(ns, &buf, strarray_nth(boxes, i));
+            buf_appendcstr(&buf, strarray_nth(boxes, i));
         }
 
         goto end;
@@ -1125,7 +1053,7 @@ EXPORTED const char *mbname_extname(const mbname_t *mbname, const struct namespa
         int i;
         for (i = 0; i < strarray_size(boxes); i++) {
             if (i) buf_putc(&buf, ns->hier_sep);
-            _append_extbuf(ns, &buf, strarray_nth(boxes, i));
+            buf_appendcstr(&buf, strarray_nth(boxes, i));
         }
 
         goto end;
@@ -1135,13 +1063,13 @@ EXPORTED const char *mbname_extname(const mbname_t *mbname, const struct namespa
     if (mbname->is_deleted || strcmpsafe(mbname_userid(mbname), userid)) {
         buf_appendcstr(&buf, "user");
         buf_putc(&buf, ns->hier_sep);
-        _append_extbuf(ns, &buf, mbname_localpart(mbname));
+        buf_appendcstr(&buf, mbname_localpart(mbname));
         if (crossdomains) {
             const char *domain = mbname_domain(mbname);
             if (!cdother || strcmpsafe(domain, mbname_domain(userparts))) {
                 if (!domain) domain = config_defdomain;
                 buf_putc(&buf, '@');
-                _append_extbuf(ns, &buf, domain);
+                buf_appendcstr(&buf, domain);
             }
         }
         /* shared folders can ONLY be in the same domain except for admin */
@@ -1150,7 +1078,7 @@ EXPORTED const char *mbname_extname(const mbname_t *mbname, const struct namespa
         int i;
         for (i = 0; i < strarray_size(boxes); i++) {
             buf_putc(&buf, ns->hier_sep);
-            _append_extbuf(ns, &buf, strarray_nth(boxes, i));
+            buf_appendcstr(&buf, strarray_nth(boxes, i));
         }
         goto end;
     }
@@ -1159,7 +1087,7 @@ EXPORTED const char *mbname_extname(const mbname_t *mbname, const struct namespa
     int i;
     for (i = 0; i < strarray_size(boxes); i++) {
        buf_putc(&buf, ns->hier_sep);
-       _append_extbuf(ns, &buf, strarray_nth(boxes, i));
+       buf_appendcstr(&buf, strarray_nth(boxes, i));
     }
 
  end:
@@ -1577,7 +1505,7 @@ EXPORTED int mboxname_same_userid(const char *name1, const char *name2)
  * The set of printable chars that are not in GOODCHARS are:
  *    !"%&/;<>\`{|}
  */
-#define GOODCHARS " #$'()*+,-.0123456789:=?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz~"
+#define GOODCHARS "\x1f #$'()*+,-.0123456789:=?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_abcdefghijklmnopqrstuvwxyz~"
 HIDDEN int mboxname_policycheck(const char *name)
 {
     const char *p;
@@ -1737,7 +1665,7 @@ EXPORTED int mboxname_is_prefix(const char *longstr, const char *shortstr)
         return 0;
 
     /* longer, and not a separator */
-    if (longlen > shortlen && longstr[shortlen] != '.')
+    if (longlen > shortlen && longstr[shortlen] != INT_HIERSEP_CHAR)
         return 0;
 
     /* it's a match! */
@@ -1788,7 +1716,7 @@ EXPORTED void mboxname_hash(char *dest, size_t destlen,
     int i;
     for (i = 0; i < strarray_size(boxes); i++) {
         buf_putc(&buf, '/');
-        _append_intbuf(&buf, strarray_nth(boxes, i));
+        buf_appendcstr(&buf, strarray_nth(boxes, i));
     }
 
     /* for now, keep API even though we're doing a buffer inside here */
@@ -2034,7 +1962,7 @@ EXPORTED int mboxname_make_parent(char *name)
     if (!name[0] || !strcmp(name+domainlen, "user"))
         return 0;                               /* stop now */
 
-    p = strrchr(name, '.');
+    p = strrchr(name, INT_HIERSEP_CHAR);
 
     if (p && (p - name > domainlen))            /* don't split subdomain */
         *p = '\0';
