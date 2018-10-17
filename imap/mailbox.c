@@ -5529,7 +5529,7 @@ HIDDEN int mailbox_delete_cleanup(struct mailbox *mailbox, const char *part, con
         }
 
         /* Check if parent mailbox exists */
-        ntail = strrchr(nbuf, '.');
+        ntail = strrchr(nbuf, INT_HIERSEP_CHAR);
         if (!ntail || strchr(ntail, '!')) {
             /* Hit top of hierarchy or domain separator */
             break;
