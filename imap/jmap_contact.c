@@ -384,7 +384,8 @@ gotvalue:
     json_object_set_new(obj, "uid", json_string(cdata->vcard_uid));
 
     json_object_set_new(obj, "addressbookId",
-                        json_string(strrchr(cdata->dav.mailbox, '.')+1));
+                        json_string(strrchr(cdata->dav.mailbox,
+                                            INT_HIERSEP_CHAR)+1));
 
     xhref = jmap_xhref(cdata->dav.mailbox, cdata->dav.resource);
     json_object_set_new(obj, "x-href", json_string(xhref));
