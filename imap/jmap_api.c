@@ -70,6 +70,88 @@
 #include "imap/jmap_err.h"
 
 
+struct mymblist_rock {
+    mboxlist_cb *proc;
+    void *rock;
+    struct auth_state *authstate;
+    hash_table *mboxrights;
+};
+
+static int myrights(struct auth_state *authstate,
+                    const mbentry_t *mbentry,
+                    hash_table *mboxrights)
+{
+    int *rightsptr = hash_lookup(mbentry->name, mboxrights);
+    if (!rightsptr) {
+        rightsptr = xmalloc(sizeof(int));
+        *rightsptr = httpd_myrights(authstate, mbentry);
+        hash_insert(mbentry->name, rightsptr, mboxrights);
+    }
+    return *rightsptr;
+}
+
+static int mymblist_cb(const mbentry_t *mbentry, void *rock)
+{
+    struct mymblist_rock *myrock = rock;
+
+    int rights = myrights(myrock->authstate, mbentry, myrock->mboxrights);
+    if (!(rights & ACL_LOOKUP))
+        return 0;
+
+    return myrock->proc(mbentry, myrock->rock);
+}
+
+static int mymblist(const char *userid,
+                    const char *accountid,
+                    struct auth_state *authstate,
+                    hash_table *mboxrights,
+                    mboxlist_cb *proc,
+                    void *rock)
+{
+    int flags = MBOXTREE_INTERMEDIATES;
+
+    /* skip ACL checks if account owner */
+    if (!strcmp(userid, accountid))
+        return mboxlist_usermboxtree(userid, authstate, proc, rock, flags);
+
+    /* Open the INBOX first */
+    struct mymblist_rock myrock = { proc, rock, authstate, mboxrights };
+    return mboxlist_usermboxtree(accountid, authstate, mymblist_cb, &myrock, flags);
+}
+
+HIDDEN int jmap_mboxlist(jmap_req_t *req, mboxlist_cb *proc, void *rock)
+{
+    return mymblist(req->userid, req->accountid, req->authstate,
+                    req->mboxrights, proc, rock);
+}
+
+HIDDEN int jmap_is_accessible(const mbentry_t *mbentry,
+                              void *rock __attribute__((unused)))
+{
+    if ((mbentry->mbtype & MBTYPE_DELETED) ||
+        (mbentry->mbtype & MBTYPE_MOVING) ||
+        (mbentry->mbtype & MBTYPE_REMOTE) ||
+        (mbentry->mbtype & MBTYPE_RESERVE)) {
+        return 0;
+    }
+    return IMAP_OK_COMPLETED;
+}
+
+HIDDEN mbentry_t *jmap_mbentry_by_uniqueid(jmap_req_t *req __attribute__((unused)),
+                                           const char *id,
+                                           int include_tombstones)
+{
+    mbentry_t *mbentry = NULL;
+
+    int r = mboxlist_lookup_by_uniqueid(id, &mbentry, NULL);
+    if (mbentry &&
+        (r || (!include_tombstones && (mbentry->mbtype & MBTYPE_DELETED)))) {
+        mboxlist_entry_free(&mbentry);
+        mbentry = NULL;
+    }
+    return mbentry;
+}
+
 static json_t *extract_value(json_t *from, const char *path, ptrarray_t *refs);
 
 static json_t *extract_array_value(json_t *val, const char *idx,
