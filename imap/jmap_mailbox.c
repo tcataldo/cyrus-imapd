@@ -302,11 +302,7 @@ static int _mbox_find_specialuse_cb(const mbentry_t *mbentry, void *rock)
     struct buf attrib = BUF_INITIALIZER;
     jmap_req_t *req = d->req;
 
-    if (!mbentry || !jmap_hasrights(req, mbentry, ACL_LOOKUP)) {
-        return 0;
-    }
-
-    annotatemore_lookup(mbentry->name, "/specialuse", req->accountid, &attrib);
+    annotatemore_lookup_mbe(mbentry, "/specialuse", req->accountid, &attrib);
 
     if (attrib.len) {
         strarray_t *uses = strarray_split(buf_cstring(&attrib), " ", STRARRAY_TRIM);
