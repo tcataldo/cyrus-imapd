@@ -65,6 +65,7 @@
 #include "imap/global.h"
 #include "imap/sync_log.h"
 #include "imap/tls.h"
+#include "imap/user.h"
 #include "imap/version.h"
 #include "sieve/sieve_interface.h"
 #include "timsieved/actions.h"
@@ -100,35 +101,28 @@ int actions_init(void)
 
 int actions_setuser(const char *userid)
 {
-  char userbuf[1024], *user, *domain = NULL;
   size_t size = 1024, len;
   int result;
 
   char *sieve_dir = (char *) xzmalloc(size+1);
 
   sieved_userid = xstrdup(userid);
-  user = (char *) userid;
-  if (config_virtdomains && strchr(user, '@')) {
-      /* split the user and domain */
-      strlcpy(userbuf, userid, sizeof(userbuf));
-      user = userbuf;
-      if ((domain = strrchr(user, '@'))) *domain++ = '\0';
-  }
-
-  len = strlcpy(sieve_dir, sieve_dir_config, size);
-
-  if (domain) {
-      char dhash = (char) dir_hash_c(domain, config_fulldirhash);
-      len += snprintf(sieve_dir+len, size-len, "%s%c/%s",
-                      FNAME_DOMAINDIR, dhash, domain);
-  }
 
   if (sieved_userisadmin) {
+      const char *domain = NULL;
+
+      len = strlcpy(sieve_dir, sieve_dir_config, size);
+
+      if (config_virtdomains && (domain = strrchr(userid, '@'))) {
+          char dhash = (char) dir_hash_c(++domain, config_fulldirhash);
+          len += snprintf(sieve_dir+len, size-len, "%s%c/%s",
+                          FNAME_DOMAINDIR, dhash, domain);
+      }
+
       strlcat(sieve_dir, "/global", size);
   }
   else {
-      char hash = (char) dir_hash_c(user, config_fulldirhash);
-      snprintf(sieve_dir+len, size-len, "/%c/%s", hash, user);
+      strlcpy(sieve_dir, user_sieve_path(userid), size);
   }
 
   result = chdir(sieve_dir);

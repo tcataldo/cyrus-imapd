@@ -73,6 +73,7 @@
 #include "smtpclient.h"
 #include "strhash.h"
 #include "tok.h"
+#include "user.h"
 #include "util.h"
 #include "version.h"
 #include "xmalloc.h"
@@ -1837,20 +1838,28 @@ static int sieve_find_script(const char *user, const char *domain,
         /* check ~USERNAME/.sieve */
         snprintf(fname, size, "%s/%s", pent->pw_dir, script ? script : ".sieve");
     } else { /* look in sieve_dir */
-        size_t len = strlcpy(fname, sieve_dir, size);
-
-        if (domain) {
-            char dhash = (char) dir_hash_c(domain, config_fulldirhash);
-            len += snprintf(fname+len, size-len, "%s%c/%s",
-                            FNAME_DOMAINDIR, dhash, domain);
-        }
+        size_t len;
 
         if (!user) { /* global script */
+            len = strlcpy(fname, sieve_dir, size);
+
+            if (domain) {
+                char dhash = (char) dir_hash_c(domain, config_fulldirhash);
+                len += snprintf(fname+len, size-len, "%s%c/%s",
+                                FNAME_DOMAINDIR, dhash, domain);
+            }
+
             len = strlcat(fname, "/global/", size);
         }
         else {
-            char hash = (char) dir_hash_c(user, config_fulldirhash);
-            len += snprintf(fname+len, size-len, "/%c/%s/", hash, user);
+            const char *userid = user;
+
+            if (domain) {
+                snprintf(fname, size, "%s@%s", user, domain);
+                userid = fname;
+            }
+
+            len = strlcpy(fname, user_sieve_path(userid), size);
 
             if (!script) { /* default script */
                 char *bc_fname;

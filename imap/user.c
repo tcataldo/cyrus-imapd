@@ -81,6 +81,7 @@
 #include "user.h"
 #include "util.h"
 #include "xmalloc.h"
+#include "xstrlcat.h"
 
 /* generated headers are not necessarily in current directory */
 #include "imap/imap_err.h"
@@ -134,23 +135,20 @@ static int user_deleteacl(char *name, int matchlen, int category, void* rock)
 EXPORTED const char *user_sieve_path(const char *user)
 {
     static char sieve_path[2048];
-    char hash, *domain;
 
-    if (config_virtdomains && (domain = strchr(user, '@'))) {
-        char d = (char) dir_hash_c(domain+1, config_fulldirhash);
-        *domain = '\0';  /* split user@domain */
-        hash = (char) dir_hash_c(user, config_fulldirhash);
-        snprintf(sieve_path, sizeof(sieve_path), "%s%s%c/%s/%c/%s",
-                 config_getstring(IMAPOPT_SIEVEDIR),
-                 FNAME_DOMAINDIR, d, domain+1, hash, user);
-        *domain = '@';  /* reassemble user@domain */
-    }
+    char *inboxname = mboxname_user_mbox(user, NULL);
+    mbentry_t *mbentry = NULL;
+
+    int r = mboxlist_lookup(inboxname, &mbentry, NULL);
+    free(inboxname);
+
+    if (r) sieve_path[0] = '\0';
     else {
-        hash = (char) dir_hash_c(user, config_fulldirhash);
-
-        snprintf(sieve_path, sizeof(sieve_path), "%s/%c/%s",
-                 config_getstring(IMAPOPT_SIEVEDIR), hash, user);
+        mboxname_id_hash(sieve_path, sizeof(sieve_path),
+                         config_getstring(IMAPOPT_SIEVEDIR), mbentry->uniqueid);
+        strlcat(sieve_path, "/", sizeof(sieve_path));
     }
+    mboxlist_entry_free(&mbentry);
 
     return sieve_path;
 }
@@ -241,7 +239,7 @@ EXPORTED int user_deletedata(const char *userid, int wipe_user)
 
     return 0;
 }
-
+#if 0
 struct rename_rock {
     const char *olduser;
     const char *newuser;
@@ -373,7 +371,7 @@ EXPORTED int user_renamedata(const char *olduser, const char *newuser)
 
     return 0;
 }
-
+#endif
 EXPORTED int user_renameacl(const struct namespace *namespace, const char *name,
                             const char *olduser, const char *newuser)
 {
