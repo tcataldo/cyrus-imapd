@@ -576,10 +576,10 @@ static json_t *_mbox_get(jmap_req_t *req,
             jmap_wantprop(props, "totalEmails") || jmap_wantprop(props, "unreadEmails")) {
             conv_status_t convstatus = CONV_STATUS_INIT;
             r = conversation_getstatus(req->cstate,
-                            mbname_intname(mbname), &convstatus);
+                                       mbentry->uniqueid, &convstatus);
             if (r) {
                 syslog(LOG_ERR, "conversation_getstatus(%s): %s",
-                        mbname_intname(mbname), error_message(r));
+                       mbname_intname(mbname), error_message(r));
                 goto done;
             }
             if (jmap_wantprop(props, "totalEmails")) {
