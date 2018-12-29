@@ -12032,11 +12032,9 @@ static void cmd_xfer(const char *tag, const char *name,
         mboxlist_findall(NULL, "*", 1, NULL, NULL, xfer_addmbox, &list);
     } else {
         /* mailbox pattern */
-        mbname_t *mbname;
+        mbname_t *mbname =
+            mbname_from_extname(name, &imapd_namespace, imapd_userid);
 
-        intname = mboxname_from_external(name, &imapd_namespace, imapd_userid);
-
-        mbname = mbname_from_intname(intname);
         if (mbname_localpart(mbname) &&
             (mbname_isdeleted(mbname) || strarray_size(mbname_boxes(mbname)))) {
             /* targeted a user submailbox */
@@ -12044,8 +12042,10 @@ static void cmd_xfer(const char *tag, const char *name,
         }
         mbname_free(&mbname);
 
-        mboxlist_findall(NULL, intname, 1, NULL, NULL, xfer_addmbox, &list);
-        free(intname);
+        /* NOTE: Since XFER can only be used by an admin,
+         * 'name' is the external name to be used for findall.
+         */
+        mboxlist_findall(NULL, name, 1, NULL, NULL, xfer_addmbox, &list);
     }
 
     r = xfer_init(toserver, &xfer);
@@ -12058,7 +12058,7 @@ static void cmd_xfer(const char *tag, const char *name,
          * to the destination backend as an admin, we take advantage of the fact
          * that admins *always* use a consistent mailbox naming scheme.
          * So, 'name' should be used in any command we send to a backend, and
-         * 'intname' is the internal name to be used for mupdate and findall.
+         * 'intname' is the internal name to be used for mupdate. 
          */
 
         r = 0;
