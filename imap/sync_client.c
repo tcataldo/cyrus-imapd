@@ -1126,17 +1126,13 @@ int main(int argc, char **argv)
                 if ((len == 0) || (buf[0] == '#'))
                     continue;
 
-                char *intname = mboxname_from_external(buf, &sync_namespace, NULL);
-                if (!sync_name_lookup(mboxname_list, intname))
-                    sync_name_list_add(mboxname_list, intname);
-                free(intname);
+                if (!sync_name_lookup(mboxname_list, buf))
+                    sync_name_list_add(mboxname_list, buf);
             }
             fclose(file);
         } else for (i = optind; i < argc; i++) {
-            char *intname = mboxname_from_external(argv[i], &sync_namespace, NULL);
-            if (!sync_name_lookup(mboxname_list, intname))
-                sync_name_list_add(mboxname_list, intname);
-            free(intname);
+            if (!sync_name_lookup(mboxname_list, buf))
+                sync_name_list_add(mboxname_list, buf);
         }
 
         if (sync_do_mailboxes(mboxname_list, partition, sync_backend, NULL, flags)) {
