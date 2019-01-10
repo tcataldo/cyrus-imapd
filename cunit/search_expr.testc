@@ -351,9 +351,9 @@ static void test_get_search_program(void)
      */
     /* FOLDER <mboxname> */
     TESTCASE("folder INBOX\r\n",
-             "(and (match folder \"user.fred\"))");
+             "(and (match folder \"user" INT_HIERSEP_STR "fred\"))");
     TESTCASE("folder GastroPub\r\n",
-             "(and (match folder \"user.fred.GastroPub\"))");
+             "(and (match folder \"user" INT_HIERSEP_STR "fred" INT_HIERSEP_STR "GastroPub\"))");
 
     /* XLISTID <string> */
     TESTCASE("xlistid \"semiotics\"\r\n",
