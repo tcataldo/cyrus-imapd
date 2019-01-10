@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "config.h"
 #include "cunit/cyrunit.h"
+#include "imap/mboxname.h"
 #include "imap/quota.h"
 #include "xmalloc.h"
 #include "retry.h"
@@ -11,6 +12,9 @@
 #include "libcyr_cfg.h"
 #include "libconfig.h"
 #include "hash.h"
+
+#define HS                      INT_HIERSEP_STR
+#define DS                      INT_DOMAINSEP_STR
 
 #define DBDIR                   "test-mb-dbdir"
 #define QUOTAROOT               "user.smurf"
@@ -772,21 +776,21 @@ static void test_findroot(void)
      * behaviour when the database is empty:
      * there is no root to be found
      */
-    TESTCASE("user.foo.bar.baz", NULL);
-    TESTCASE("user.foo.quux", NULL);
-    TESTCASE("user.foo", NULL);
-    TESTCASE("user.foonly", NULL);
-    TESTCASE("user.fo", NULL);
-    TESTCASE("user.smeg", NULL);
-    TESTCASE("user.smeg.fridge", NULL);
-    TESTCASE("user.farnarkle", NULL);
+    TESTCASE("user" HS "foo" HS "bar" HS "baz", NULL);
+    TESTCASE("user" HS "foo" HS "quux", NULL);
+    TESTCASE("user" HS "foo", NULL);
+    TESTCASE("user" HS "foonly", NULL);
+    TESTCASE("user" HS "fo", NULL);
+    TESTCASE("user" HS "smeg", NULL);
+    TESTCASE("user" HS "smeg" HS "fridge", NULL);
+    TESTCASE("user" HS "farnarkle", NULL);
 
     /* add some db entries, but not the "user." */
-    q.root = "user.foo";
+    q.root = "user" HS "foo";
     r = quota_write(&q, 0, &txn);
     CU_ASSERT_EQUAL(r, 0);
 
-    q.root = "user.smeg";
+    q.root = "user" HS "smeg";
     r = quota_write(&q, 0, &txn);
     CU_ASSERT_EQUAL(r, 0);
 
@@ -798,20 +802,20 @@ static void test_findroot(void)
      * behaviour with these new entries
      */
     /* "user.foo" and its subfolders match the "user.foo" root */
-    TESTCASE("user.foo.bar.baz", "user.foo");
-    TESTCASE("user.foo.quux", "user.foo");
-    TESTCASE("user.foo", "user.foo");
+    TESTCASE("user" HS "foo" HS "bar" HS "baz", "user" HS "foo");
+    TESTCASE("user" HS "foo" HS "quux", "user" HS "foo");
+    TESTCASE("user" HS "foo", "user" HS "foo");
     /* "user.foonly" doesn't match "user.foo" despite the leading
      * 8 characters being the same */
-    TESTCASE("user.foonly", NULL);
+    TESTCASE("user" HS "foonly", NULL);
     /* "user.fo" doesn't match "user.foo" despite the leading
      * 7 characters being the same */
-    TESTCASE("user.fo", NULL);
+    TESTCASE("user" HS "fo", NULL);
     /* "user.smeg" and its subfolders matches the "user.smeg" root */
-    TESTCASE("user.smeg", "user.smeg");
-    TESTCASE("user.smeg.fridge", "user.smeg");
+    TESTCASE("user" HS "smeg", "user" HS "smeg");
+    TESTCASE("user" HS "smeg" HS "fridge", "user" HS "smeg");
     /* no root matches at all for "user.farnarkle" */
-    TESTCASE("user.farnarkle", NULL);
+    TESTCASE("user" HS "farnarkle", NULL);
 
     /* add a catch-all "user" record */
     q.root = "user";
@@ -826,18 +830,18 @@ static void test_findroot(void)
      * behaviour with these new entries
      */
     /* "user.foo" unchanged */
-    TESTCASE("user.foo.bar.baz", "user.foo");
-    TESTCASE("user.foo.quux", "user.foo");
-    TESTCASE("user.foo", "user.foo");
+    TESTCASE("user" HS "foo" HS "bar" HS "baz", "user" HS "foo");
+    TESTCASE("user" HS "foo" HS "quux", "user" HS "foo");
+    TESTCASE("user" HS "foo", "user" HS "foo");
     /* "user.foonly" matches the catch-all */
-    TESTCASE("user.foonly", "user");
+    TESTCASE("user" HS "foonly", "user");
     /* "user.fo" ditto */
-    TESTCASE("user.fo", "user");
+    TESTCASE("user" HS "fo", "user");
     /* "user.smeg" unchanged */
-    TESTCASE("user.smeg", "user.smeg");
-    TESTCASE("user.smeg.fridge", "user.smeg");
+    TESTCASE("user" HS "smeg", "user" HS "smeg");
+    TESTCASE("user" HS "smeg" HS "fridge", "user" HS "smeg");
     /* "user.farnarkle" matches the catch-all */
-    TESTCASE("user.farnarkle", "user");
+    TESTCASE("user" HS "farnarkle", "user");
 }
 
 static void test_findroot_virtdomains(void)
@@ -858,32 +862,32 @@ static void test_findroot_virtdomains(void)
      * behaviour when the database is empty:
      * there is no root to be found
      */
-    TESTCASE("bloggs.com!user.foo.bar.baz", NULL);
-    TESTCASE("bloggs.com!user.foo.quux", NULL);
-    TESTCASE("bloggs.com!user.foo", NULL);
-    TESTCASE("fnarp.org!user.foo.bar.baz", NULL);
-    TESTCASE("fnarp.org!user.foo.quux", NULL);
-    TESTCASE("fnarp.org!user.foo", NULL);
-    TESTCASE("user.foo.bar.baz", NULL);
-    TESTCASE("user.foo.quux", NULL);
-    TESTCASE("user.foo", NULL);
-    TESTCASE("bloggs.com!user.smeg", NULL);
-    TESTCASE("bloggs.com!user.smeg.fridge", NULL);
-    TESTCASE("fnarp.org!user.smeg", NULL);
-    TESTCASE("fnarp.org!user.smeg.fridge", NULL);
-    TESTCASE("user.smeg", NULL);
-    TESTCASE("user.smeg.fridge", NULL);
-    TESTCASE("bloggs.com!user.farnarkle", NULL);
-    TESTCASE("fnarp.org!user.farnarkle", NULL);
-    TESTCASE("user.farnarkle", NULL);
+    TESTCASE("bloggs.com" DS "user" HS "foo" HS "bar" HS "baz", NULL);
+    TESTCASE("bloggs.com" DS "user" HS "foo" HS "quux", NULL);
+    TESTCASE("bloggs.com" DS "user" HS "foo", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "foo" HS "bar" HS "baz", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "foo" HS "quux", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "foo", NULL);
+    TESTCASE("user" HS "foo" HS "bar" HS "baz", NULL);
+    TESTCASE("user" HS "foo" HS "quux", NULL);
+    TESTCASE("user" HS "foo", NULL);
+    TESTCASE("bloggs.com" DS "user" HS "smeg", NULL);
+    TESTCASE("bloggs.com" DS "user" HS "smeg" HS "fridge", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "smeg", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "smeg" HS "fridge", NULL);
+    TESTCASE("user" HS "smeg", NULL);
+    TESTCASE("user" HS "smeg" HS "fridge", NULL);
+    TESTCASE("bloggs.com" DS "user" HS "farnarkle", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "farnarkle", NULL);
+    TESTCASE("user" HS "farnarkle", NULL);
 
     /* add some db entries for bloggs.com, but not fnarp.org,
      * not the default domain, and not the "user." */
-    q.root = "bloggs.com!user.foo";
+    q.root = "bloggs.com" DS "user" HS "foo";
     r = quota_write(&q, 0, &txn);
     CU_ASSERT_EQUAL(r, 0);
 
-    q.root = "bloggs.com!user.smeg";
+    q.root = "bloggs.com" DS "user" HS "smeg";
     r = quota_write(&q, 0, &txn);
     CU_ASSERT_EQUAL(r, 0);
 
@@ -896,34 +900,37 @@ static void test_findroot_virtdomains(void)
      */
     /* foo@bloggs.com's home and its subfolders match
      * the "bloggs.com!user.foo" root */
-    TESTCASE("bloggs.com!user.foo.bar.baz", "bloggs.com!user.foo");
-    TESTCASE("bloggs.com!user.foo.quux", "bloggs.com!user.foo");
-    TESTCASE("bloggs.com!user.foo", "bloggs.com!user.foo");
+    TESTCASE("bloggs.com" DS "user" HS "foo" HS "bar" HS "baz",
+             "bloggs.com" DS "user" HS "foo");
+    TESTCASE("bloggs.com" DS "user" HS "foo" HS "quux",
+             "bloggs.com" DS "user" HS "foo");
+    TESTCASE("bloggs.com" DS "user" HS "foo", "bloggs.com" DS "user" HS "foo");
     /* foo@fnarp.org's home and its subfolders don't match anything */
-    TESTCASE("fnarp.org!user.foo.bar.baz", NULL);
-    TESTCASE("fnarp.org!user.foo.quux", NULL);
-    TESTCASE("fnarp.org!user.foo", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "foo" HS "bar" HS "baz", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "foo" HS "quux", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "foo", NULL);
     /* foo's home and its subfolders don't match anything */
-    TESTCASE("user.foo.bar.baz", NULL);
-    TESTCASE("user.foo.quux", NULL);
-    TESTCASE("user.foo", NULL);
+    TESTCASE("user" HS "foo" HS "bar" HS "baz", NULL);
+    TESTCASE("user" HS "foo" HS "quux", NULL);
+    TESTCASE("user" HS "foo", NULL);
     /* smeg@bloggs.com's home and its subfolders match
      * the "bloggs.com!user.smeg" root */
-    TESTCASE("bloggs.com!user.smeg", "bloggs.com!user.smeg");
-    TESTCASE("bloggs.com!user.smeg.fridge", "bloggs.com!user.smeg");
+    TESTCASE("bloggs.com" DS "user" HS "smeg", "bloggs.com" DS "user" HS "smeg");
+    TESTCASE("bloggs.com" DS "user" HS "smeg" HS "fridge",
+             "bloggs.com" DS "user" HS "smeg");
     /* smeg@fnarp.org's home and its subfolders don't match anything */
-    TESTCASE("fnarp.org!user.smeg", NULL);
-    TESTCASE("fnarp.org!user.smeg.fridge", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "smeg", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "smeg" HS "fridge", NULL);
     /* smeg's home and its subfolders don't match anything */
-    TESTCASE("user.smeg", NULL);
-    TESTCASE("user.smeg.fridge", NULL);
+    TESTCASE("user" HS "smeg", NULL);
+    TESTCASE("user" HS "smeg" HS "fridge", NULL);
     /* no root matches at all for "user.farnarkle" in any domain */
-    TESTCASE("bloggs.com!user.farnarkle", NULL);
-    TESTCASE("fnarp.org!user.farnarkle", NULL);
-    TESTCASE("user.farnarkle", NULL);
+    TESTCASE("bloggs.com" DS "user" HS "farnarkle", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "farnarkle", NULL);
+    TESTCASE("user" HS "farnarkle", NULL);
 
     /* add a catch-all "bloggs.com" record */
-    q.root = "bloggs.com!";
+    q.root = "bloggs.com" DS "";
     r = quota_write(&q, 0, &txn);
     CU_ASSERT_EQUAL(r, 0);
 
@@ -935,34 +942,37 @@ static void test_findroot_virtdomains(void)
      * behaviour with these new entries
      */
     /* foo@bloggs.com unchanged */
-    TESTCASE("bloggs.com!user.foo.bar.baz", "bloggs.com!user.foo");
-    TESTCASE("bloggs.com!user.foo.quux", "bloggs.com!user.foo");
-    TESTCASE("bloggs.com!user.foo", "bloggs.com!user.foo");
+    TESTCASE("bloggs.com" DS "user" HS "foo" HS "bar" HS "baz",
+             "bloggs.com" DS "user" HS "foo");
+    TESTCASE("bloggs.com" DS "user" HS "foo" HS "quux",
+             "bloggs.com" DS "user" HS "foo");
+    TESTCASE("bloggs.com" DS "user" HS "foo", "bloggs.com" DS "user" HS "foo");
     /* foo@fnarp.org's unchanged */
-    TESTCASE("fnarp.org!user.foo.bar.baz", NULL);
-    TESTCASE("fnarp.org!user.foo.quux", NULL);
-    TESTCASE("fnarp.org!user.foo", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "foo" HS "bar" HS "baz", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "foo" HS "quux", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "foo", NULL);
     /* foo unchanged */
-    TESTCASE("user.foo.bar.baz", NULL);
-    TESTCASE("user.foo.quux", NULL);
-    TESTCASE("user.foo", NULL);
+    TESTCASE("user" HS "foo" HS "bar" HS "baz", NULL);
+    TESTCASE("user" HS "foo" HS "quux", NULL);
+    TESTCASE("user" HS "foo", NULL);
     /* smeg@bloggs.com unchanged */
-    TESTCASE("bloggs.com!user.smeg", "bloggs.com!user.smeg");
-    TESTCASE("bloggs.com!user.smeg.fridge", "bloggs.com!user.smeg");
+    TESTCASE("bloggs.com" DS "user" HS "smeg", "bloggs.com" DS "user" HS "smeg");
+    TESTCASE("bloggs.com" DS "user" HS "smeg" HS "fridge",
+             "bloggs.com" DS "user" HS "smeg");
     /* smeg@fnarp.org unchanged */
-    TESTCASE("fnarp.org!user.smeg", NULL);
-    TESTCASE("fnarp.org!user.smeg.fridge", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "smeg", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "smeg" HS "fridge", NULL);
     /* smeg unchanged */
-    TESTCASE("user.smeg", NULL);
-    TESTCASE("user.smeg.fridge", NULL);
+    TESTCASE("user" HS "smeg", NULL);
+    TESTCASE("user" HS "smeg" HS "fridge", NULL);
     /* farnarkle@bloggs.com matches the bloggs.com catch-all */
-    TESTCASE("bloggs.com!user.farnarkle", "bloggs.com!");
+    TESTCASE("bloggs.com" DS "user" HS "farnarkle", "bloggs.com" DS "");
     /* farnarkle at other domains unchanged */
-    TESTCASE("fnarp.org!user.farnarkle", NULL);
-    TESTCASE("user.farnarkle", NULL);
+    TESTCASE("fnarp.org" DS "user" HS "farnarkle", NULL);
+    TESTCASE("user" HS "farnarkle", NULL);
 
     /* add a catch-all "fnarp.org!user" record */
-    q.root = "fnarp.org!user";
+    q.root = "fnarp.org" DS "user";
     r = quota_write(&q, 0, &txn);
     CU_ASSERT_EQUAL(r, 0);
 
@@ -974,32 +984,36 @@ static void test_findroot_virtdomains(void)
      * behaviour with these new entries
      */
     /* foo@bloggs.com unchanged */
-    TESTCASE("bloggs.com!user.foo.bar.baz", "bloggs.com!user.foo");
-    TESTCASE("bloggs.com!user.foo.quux", "bloggs.com!user.foo");
-    TESTCASE("bloggs.com!user.foo", "bloggs.com!user.foo");
+    TESTCASE("bloggs.com" DS "user" HS "foo" HS "bar" HS "baz",
+             "bloggs.com" DS "user" HS "foo");
+    TESTCASE("bloggs.com" DS "user" HS "foo" HS "quux",
+             "bloggs.com" DS "user" HS "foo");
+    TESTCASE("bloggs.com" DS "user" HS "foo", "bloggs.com" DS "user" HS "foo");
     /* foo@fnarp.org's matches the fnarp.org catch-all */
-    TESTCASE("fnarp.org!user.foo.bar.baz", "fnarp.org!user");
-    TESTCASE("fnarp.org!user.foo.quux", "fnarp.org!user");
-    TESTCASE("fnarp.org!user.foo", "fnarp.org!user");
+    TESTCASE("fnarp.org" DS "user" HS "foo" HS "bar" HS "baz",
+             "fnarp.org" DS "user");
+    TESTCASE("fnarp.org" DS "user" HS "foo" HS "quux", "fnarp.org" DS "user");
+    TESTCASE("fnarp.org" DS "user" HS "foo", "fnarp.org" DS "user");
     /* foo unchanged */
-    TESTCASE("user.foo.bar.baz", NULL);
-    TESTCASE("user.foo.quux", NULL);
-    TESTCASE("user.foo", NULL);
+    TESTCASE("user" HS "foo" HS "bar" HS "baz", NULL);
+    TESTCASE("user" HS "foo" HS "quux", NULL);
+    TESTCASE("user" HS "foo", NULL);
     /* smeg@bloggs.com unchanged */
-    TESTCASE("bloggs.com!user.smeg", "bloggs.com!user.smeg");
-    TESTCASE("bloggs.com!user.smeg.fridge", "bloggs.com!user.smeg");
+    TESTCASE("bloggs.com" DS "user" HS "smeg", "bloggs.com" DS "user" HS "smeg");
+    TESTCASE("bloggs.com" DS "user" HS "smeg" HS "fridge",
+             "bloggs.com" DS "user" HS "smeg");
     /* smeg@fnarp.org matches the fnarp.org catch-all */
-    TESTCASE("fnarp.org!user.smeg", "fnarp.org!user");
-    TESTCASE("fnarp.org!user.smeg.fridge", "fnarp.org!user");
+    TESTCASE("fnarp.org" DS "user" HS "smeg", "fnarp.org" DS "user");
+    TESTCASE("fnarp.org" DS "user" HS "smeg" HS "fridge", "fnarp.org" DS "user");
     /* smeg unchanged */
-    TESTCASE("user.smeg", NULL);
-    TESTCASE("user.smeg.fridge", NULL);
+    TESTCASE("user" HS "smeg", NULL);
+    TESTCASE("user" HS "smeg" HS "fridge", NULL);
     /* farnarkle@bloggs.com matches the bloggs.com catch-all */
-    TESTCASE("bloggs.com!user.farnarkle", "bloggs.com!");
+    TESTCASE("bloggs.com" DS "user" HS "farnarkle", "bloggs.com" DS "");
     /* farnarkle@fnarp.org matches the fnarp.org catch-all */
-    TESTCASE("fnarp.org!user.farnarkle", "fnarp.org!user");
+    TESTCASE("fnarp.org" DS "user" HS "farnarkle", "fnarp.org" DS "user");
     /* farnarkle in the default domain unchanged */
-    TESTCASE("user.farnarkle", NULL);
+    TESTCASE("user" HS "farnarkle", NULL);
 }
 #undef TESTCASE
 
