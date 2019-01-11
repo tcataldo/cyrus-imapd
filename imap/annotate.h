@@ -231,7 +231,7 @@ int annotate_state_writemdata(annotate_state_t *state, const char *entry,
  * Uses its own transaction.
  */
 int annotate_rename_mailbox(struct mailbox *oldmailbox,
-                            struct mailbox *newmailbox, int copy);
+                            struct mailbox *newmailbox);
 /* Handle a message COPY, by copying all the appropriate
  * per-message annotations. */
 int annotate_msg_copy(struct mailbox *oldmailbox, uint32_t olduid,

@@ -3724,9 +3724,7 @@ static int rename_cb(const char *mboxname __attribute__((unused)),
 }
 
 EXPORTED int annotate_rename_mailbox(struct mailbox *oldmailbox,
-                                     struct mailbox *newmailbox,
-                                     int copy __attribute__((unused)))
-
+                                     struct mailbox *newmailbox)
 {
     /* rename one mailbox */
     char *olduserid = mboxname_to_userid(oldmailbox->name);
