@@ -146,7 +146,6 @@ EXPORTED const char *user_sieve_path(const char *user)
     else {
         mboxname_id_hash(sieve_path, sizeof(sieve_path),
                          config_getstring(IMAPOPT_SIEVEDIR), mbentry->uniqueid);
-        strlcat(sieve_path, "/", sizeof(sieve_path));
     }
     mboxlist_entry_free(&mbentry);
 
