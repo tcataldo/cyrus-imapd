@@ -1939,11 +1939,13 @@ static int sync_prepare_dlists(struct mailbox *mailbox,
     modseq_t xconvmodseq = 0;
     int r = 0;
     int ispartial = local ? local->ispartial : 0;
+    char *stdname = mboxname_to_standard(mailbox->name);
 
     if (!topart) topart = mailbox->part;
 
     dlist_setatom(kl, "UNIQUEID", mailbox->uniqueid);
-    dlist_setatom(kl, "MBOXNAME", mailbox->name);
+    dlist_setatom(kl, "MBOXNAME", stdname);
+    free(stdname);
     if (mailbox->mbtype)
         dlist_setatom(kl, "MBOXTYPE", mboxlist_mbtype_to_string(mailbox->mbtype));
     if (ispartial) {
@@ -1987,8 +1989,12 @@ static int sync_prepare_dlists(struct mailbox *mailbox,
     dlist_setatom(kl, "PARTITION", topart);
     dlist_setatom(kl, "ACL", mailbox->acl);
     dlist_setatom(kl, "OPTIONS", sync_encode_options(mailbox->i.options));
-    if (mailbox->quotaroot)
-        dlist_setatom(kl, "QUOTAROOT", mailbox->quotaroot);
+    if (mailbox->quotaroot) {
+        char *qr = mboxname_to_standard(mailbox->quotaroot);
+
+        dlist_setatom(kl, "QUOTAROOT", qr);
+        free(qr);
+    }
 
     if (mailbox->i.createdmodseq)
         dlist_setnum64(kl, "CREATEDMODSEQ", mailbox->i.createdmodseq);
@@ -2977,45 +2983,60 @@ done:
 
 /* ====================================================================== */
 
-static int getannotation_cb(const char *mailbox,
+struct get_annot_rock {
+    const char *stdname;
+    struct protstream *pout;
+};
+
+static int getannotation_cb(const char *mailbox __attribute__((unused)),
                             uint32_t uid __attribute__((unused)),
                             const char *entry, const char *userid,
                             const struct buf *value,
                             const struct annotate_metadata *mdata __attribute__((unused)),
                             void *rock)
 {
-    struct protstream *pout = (struct protstream *)rock;
+    struct get_annot_rock *grock = (struct get_annot_rock *) rock;
+    char *stduserid = mboxname_to_standard(userid);
     struct dlist *kl;
 
     kl = dlist_newkvlist(NULL, "ANNOTATION");
-    dlist_setatom(kl, "MBOXNAME", mailbox);
+    dlist_setatom(kl, "MBOXNAME", grock->stdname);
     dlist_setatom(kl, "ENTRY", entry);
-    dlist_setatom(kl, "USERID", userid);
+    dlist_setatom(kl, "USERID", stduserid);
     dlist_setmap(kl, "VALUE", value->s, value->len);
-    sync_send_response(kl, pout);
+    sync_send_response(kl, grock->pout);
     dlist_free(&kl);
+
+    free(stduserid);
 
     return 0;
 }
 
 int sync_get_annotation(struct dlist *kin, struct sync_state *sstate)
 {
-    const char *mboxname = kin->sval;
-    return annotatemore_findall(mboxname, 0, "*", /*modseq*/0,
-                                &getannotation_cb, (void *) sstate->pout,
-                                /*flags*/0);
+    struct get_annot_rock grock = { kin->sval, sstate->pout };
+    char *intname = mboxname_from_standard(kin->sval);
+
+    int r = annotatemore_findall(intname, 0, "*", /*modseq*/0,
+                                 &getannotation_cb, (void *) &grock,
+                                 /*flags*/0);
+    free(intname);
+    return r;
 }
 
 static void print_quota(struct quota *q, struct protstream *pout)
 {
     struct dlist *kl;
+    char *qr = mboxname_to_standard(q->root);
 
     kl = dlist_newkvlist(NULL, "QUOTA");
-    dlist_setatom(kl, "ROOT", q->root);
+    dlist_setatom(kl, "ROOT", qr);
     sync_encode_quota_limits(kl, q->limits);
     dlist_setnum64(kl, "MODSEQ", q->modseq);
     sync_send_response(kl, pout);
     dlist_free(&kl);
+
+    free(qr);
 }
 
 static int quota_work(const char *root, struct protstream *pout)
@@ -3032,7 +3053,12 @@ static int quota_work(const char *root, struct protstream *pout)
 
 int sync_get_quota(struct dlist *kin, struct sync_state *sstate)
 {
-    return quota_work(kin->sval, sstate->pout);
+    char *qr = mboxname_from_standard(kin->sval);
+
+    int r = quota_work(qr, sstate->pout);
+    free(qr);
+
+    return r;
 }
 
 struct mbox_rock {
@@ -3092,6 +3118,7 @@ int sync_get_fullmailbox(struct dlist *kin, struct sync_state *sstate)
 {
     struct mailbox *mailbox = NULL;
     struct dlist *kl = dlist_newkvlist(NULL, "MAILBOX");
+    char *intname = mboxname_from_standard(kin->sval);
     int r;
 
     r = mailbox_open_irl(kin->sval, &mailbox);
@@ -3115,8 +3142,11 @@ int sync_get_mailboxes(struct dlist *kin, struct sync_state *sstate)
     struct dlist *ki;
     struct mbox_rock mrock = { sstate->pout, NULL };
 
-    for (ki = kin->head; ki; ki = ki->next)
-        sync_mailbox_byname(ki->sval, &mrock);
+    for (ki = kin->head; ki; ki = ki->next) {
+        char *intname = mboxname_from_standard(ki->sval);
+        sync_mailbox_byname(intname, &mrock);
+        free(intname);
+    }
 
     return 0;
 }
@@ -3163,7 +3193,10 @@ static int user_getsub(const char *userid, struct protstream *pout)
 
     for (i = 0; i < sublist->count; i++) {
         const char *name = strarray_nth(sublist, i);
-        dlist_setatom(kl, "MBOXNAME", name);
+        char *stdname = mboxname_to_standard(name);
+
+        dlist_setatom(kl, "MBOXNAME", stdname);
+        free(stdname);
     }
 
     if (kl->head)
@@ -3210,7 +3243,12 @@ static int user_meta(const char *userid, struct protstream *pout)
 
 int sync_get_meta(struct dlist *kin, struct sync_state *sstate)
 {
-    return user_meta(kin->sval, sstate->pout);
+    char *userid = mboxname_from_standard(kin->sval);
+
+    int r = user_meta(userid, sstate->pout);
+    free(userid);
+
+    return r;
 }
 
 int sync_get_user(struct dlist *kin, struct sync_state *sstate)
@@ -3218,7 +3256,7 @@ int sync_get_user(struct dlist *kin, struct sync_state *sstate)
     int r;
     struct sync_name_list *quotaroots;
     struct sync_name *qr;
-    const char *userid = kin->sval;
+    char *userid = mboxname_from_standard(kin->sval);
     struct mbox_rock mrock;
 
     quotaroots = sync_name_list_create();
@@ -3240,6 +3278,7 @@ int sync_get_user(struct dlist *kin, struct sync_state *sstate)
 
 bail:
     sync_name_list_free(&quotaroots);
+    free(userid);
     return r;
 }
 
@@ -3564,13 +3603,16 @@ int sync_get_sieve(struct dlist *kin, struct sync_state *sstate)
     const char *filename;
     uint32_t size;
     char *sieve;
+    char *int_userid;
 
     if (!dlist_getatom(kin, "USERID", &userid))
         return IMAP_PROTOCOL_BAD_PARAMETERS;
     if (!dlist_getatom(kin, "FILENAME", &filename))
         return IMAP_PROTOCOL_BAD_PARAMETERS;
 
-    sieve = sync_sieve_read(userid, filename, &size);
+    int_userid = mboxname_from_standard(userid);
+    sieve = sync_sieve_read(int_userid, filename, &size);
+    free(int_userid);
     if (!sieve)
         return IMAP_MAILBOX_NONEXISTENT;
 
@@ -3598,6 +3640,7 @@ int sync_get_message(struct dlist *kin, struct sync_state *sstate)
     struct dlist *kl;
     struct message_guid tmp_guid;
     struct stat sbuf;
+    char *intname;
 
     if (!dlist_getatom(kin, "MBOXNAME", &mboxname))
         return IMAP_PROTOCOL_BAD_PARAMETERS;
@@ -3612,12 +3655,17 @@ int sync_get_message(struct dlist *kin, struct sync_state *sstate)
     if (!message_guid_decode(&tmp_guid, guid))
         return IMAP_PROTOCOL_BAD_PARAMETERS;
 
-    fname = mboxname_datapath(partition, mboxname, uniqueid, uid);
+    intname = mboxname_from_standard(mboxname);
+
+    fname = mboxname_datapath(partition, intname, uniqueid, uid);
     if (stat(fname, &sbuf) == -1) {
-        fname = mboxname_archivepath(partition, mboxname, uniqueid, uid);
-        if (stat(fname, &sbuf) == -1)
+        fname = mboxname_archivepath(partition, intname, uniqueid, uid);
+        if (stat(fname, &sbuf) == -1) {
+            free(intname);
             return IMAP_MAILBOX_NONEXISTENT;
+        }
     }
+    free(intname);
 
     kl = dlist_setfile(NULL, "MESSAGE", partition, &tmp_guid, sbuf.st_size, fname);
     sync_send_response(kl, sstate->pout);
