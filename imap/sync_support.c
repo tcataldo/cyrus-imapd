@@ -3676,6 +3676,7 @@ int sync_get_message(struct dlist *kin, struct sync_state *sstate)
     struct dlist *kl;
     struct message_guid tmp_guid;
     struct stat sbuf;
+    char *intname;
 
     if (!dlist_getatom(kin, "PARTITION", &partition))
         return IMAP_PROTOCOL_BAD_PARAMETERS;
@@ -3690,15 +3691,17 @@ int sync_get_message(struct dlist *kin, struct sync_state *sstate)
     if (!dlist_getname_internal(kin, "MBOXNAME", &mboxname))
         return IMAP_PROTOCOL_BAD_PARAMETERS;
 
-    fname = mboxname_datapath(partition, mboxname, uniqueid, uid);
+    intname = mboxname_from_standard(mboxname);
+
+    fname = mboxname_datapath(partition, intname, uniqueid, uid);
     if (stat(fname, &sbuf) == -1) {
-        fname = mboxname_archivepath(partition, mboxname, uniqueid, uid);
+        fname = mboxname_archivepath(partition, intname, uniqueid, uid);
         if (stat(fname, &sbuf) == -1) {
-            free(mboxname);
+            free(intname);
             return IMAP_MAILBOX_NONEXISTENT;
         }
     }
-    free(mboxname);
+    free(intname);
 
     kl = dlist_setfile(NULL, "MESSAGE", partition, &tmp_guid, sbuf.st_size, fname);
     sync_send_response(kl, sstate->pout);
