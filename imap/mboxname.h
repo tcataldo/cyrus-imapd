@@ -97,6 +97,7 @@ typedef struct mbname_parts mbname_t;
 
 const char *mbname_userid(const mbname_t *mbname);
 const char *mbname_intname(const mbname_t *mbname);
+const char *mbname_stdname(const mbname_t *mbname);
 const char *mbname_extname(const mbname_t *mbname, const struct namespace *ns, const char *userid);
 int mbname_category(const mbname_t *mbname, const struct namespace *ns, const char *userid);
 const char *mbname_category_prefix(int category, const struct namespace *ns);
@@ -109,6 +110,7 @@ const char *mbname_recipient(const mbname_t *mbname, const struct namespace *ns)
 mbname_t *mbname_from_userid(const char *userid);
 mbname_t *mbname_from_localdom(const char *localpart, const char *domain);
 mbname_t *mbname_from_intname(const char *intname);
+mbname_t *mbname_from_stdname(const char *stdname);
 mbname_t *mbname_from_extname(const char *extname, const struct namespace *ns, const char *userid);
 mbname_t *mbname_from_extsub(const char *extsub, const struct namespace *ns, const char *userid);
 mbname_t *mbname_from_recipient(const char *recip, const struct namespace *ns);
@@ -124,6 +126,8 @@ char *mbname_pop_boxes(mbname_t *mbname); /* free it yourself punk */
 void mbname_truncate_boxes(mbname_t *mbname, size_t len);
 void mbname_free(mbname_t **mbnamep);
 
+char *mboxname_from_standard(const char *stdname);
+char *mboxname_to_standard(const char *intname);
 char *mboxname_from_external(const char *extname, const struct namespace *ns, const char *userid);
 char *mboxname_to_external(const char *intname, const struct namespace *ns, const char *userid);
 

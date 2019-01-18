@@ -94,6 +94,7 @@ struct mbname_parts {
     /* cache data */
     char *userid;
     char *intname;
+    char *stdname;
     char *extname;
     char *recipient;
 };
@@ -681,6 +682,7 @@ EXPORTED void mbname_free(mbname_t **mbnamep)
     /* cached values */
     free(mbname->userid);
     free(mbname->intname);
+    free(mbname->stdname);
     free(mbname->extname);
     free(mbname->extuserid);
     free(mbname->recipient);
@@ -2734,4 +2736,150 @@ done:
     mbname_free(&mbname1);
     mbname_free(&mbname2);
     return ancestor;
+}
+
+static void _append_stdbuf(struct buf *buf, const char *val)
+{
+    const char *p;
+    for (p = val; *p; p++) {
+        switch (*p) {
+        case '.':
+            buf_putc(buf, '^');
+            break;
+        default:
+            buf_putc(buf, *p);
+            break;
+        }
+    }
+}
+
+static strarray_t *_array_from_stdname(strarray_t *a)
+{
+    int i;
+    for (i = 0; i < strarray_size(a); i++) {
+        char *p;
+        for (p = a->data[i]; *p; p++) {
+            switch (*p) {
+            case '^':
+                *p = '.';
+                break;
+            default:
+                break;
+            }
+        }
+    }
+    return a;
+}
+
+EXPORTED mbname_t *mbname_from_stdname(const char *stdname)
+{
+    mbname_t *mbname = xzmalloc(sizeof(mbname_t));
+    const char *p;
+
+    if (!stdname)
+        return mbname;
+
+    if (!*stdname)
+        return mbname; // empty string, *sigh*
+
+    const char *dp = config_getstring(IMAPOPT_DELETEDPREFIX);
+
+    mbname->stdname = xstrdup(stdname); // may as well cache it
+
+    p = strchr(stdname, '!');
+    if (p) {
+        mbname->domain = xstrndup(stdname, p - stdname);
+        if (!strcmpsafe(mbname->domain, config_defdomain)) {
+            free(mbname->domain);
+            mbname->domain = NULL;
+        }
+        stdname = p+1;
+    }
+
+    mbname->boxes = _array_from_stdname(strarray_split(stdname, ".", 0));
+
+    if (!strarray_size(mbname->boxes))
+        return mbname;
+
+    if (strarray_size(mbname->boxes) > 2 &&
+        !strcmpsafe(strarray_nth(mbname->boxes, 0), dp)) {
+        free(strarray_shift(mbname->boxes));
+        char *delval = strarray_pop(mbname->boxes);
+        mbname->is_deleted = strtoul(delval, NULL, 16);
+        free(delval);
+    }
+
+    if (strarray_size(mbname->boxes) > 1 &&
+        !strcmpsafe(strarray_nth(mbname->boxes, 0), "user")) {
+        free(strarray_shift(mbname->boxes));
+        mbname->localpart = strarray_shift(mbname->boxes);
+    }
+
+    return mbname;
+}
+
+EXPORTED char *mboxname_from_standard(const char *stdname)
+{
+    mbname_t *mbname = mbname_from_stdname(stdname);
+    char *res = xstrdupnull(mbname_intname(mbname));
+    mbname_free(&mbname);
+    return res;
+}
+
+EXPORTED char *mboxname_to_standard(const char *intname)
+{
+    mbname_t *mbname = mbname_from_intname(intname);
+    char *res = xstrdupnull(mbname_stdname(mbname));
+    mbname_free(&mbname);
+    return res;
+}
+
+EXPORTED const char *mbname_stdname(const mbname_t *mbname)
+{
+    if (mbname->stdname)
+        return mbname->stdname;
+
+    struct buf buf = BUF_INITIALIZER;
+    const char *dp = config_getstring(IMAPOPT_DELETEDPREFIX);
+    int sep = 0;
+    int i;
+
+    strarray_t *boxes = strarray_dup(mbname_boxes(mbname));
+
+    if (mbname->domain) {
+        buf_appendcstr(&buf, mbname->domain);
+        buf_putc(&buf, '!');
+    }
+
+    if (mbname->is_deleted) {
+        buf_appendcstr(&buf, dp);
+        sep = 1;
+    }
+
+    if (mbname->localpart) {
+        if (sep) buf_putc(&buf, '.');
+        buf_appendcstr(&buf, "user.");
+        _append_stdbuf(&buf, mbname->localpart);
+        sep = 1;
+    }
+
+    for (i = 0; i < strarray_size(boxes); i++) {
+        if (sep) buf_putc(&buf, '.');
+        _append_stdbuf(&buf, strarray_nth(boxes, i));
+        sep = 1;
+    }
+
+    if (mbname->is_deleted) {
+        if (sep) buf_putc(&buf, '.');
+        buf_printf(&buf, "%X", (unsigned)mbname->is_deleted);
+        sep = 1;
+    }
+
+    mbname_t *backdoor = (mbname_t *)mbname;
+    backdoor->stdname = buf_release(&buf);
+
+    buf_free(&buf);
+    strarray_free(boxes);
+
+    return mbname->stdname;
 }
