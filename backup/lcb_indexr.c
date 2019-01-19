@@ -581,7 +581,7 @@ EXPORTED struct dlist *backup_mailbox_to_dlist(
     struct dlist *dl = dlist_newkvlist(NULL, "MAILBOX");
 
     dlist_setatom(dl, "UNIQUEID", mailbox->uniqueid);
-    dlist_setatom(dl, "MBOXNAME", mailbox->mboxname);
+    dlist_setname_standard(dl, "MBOXNAME", mailbox->mboxname);
     dlist_setatom(dl, "MBOXTYPE", mailbox->mboxtype);
     dlist_setnum32(dl, "LAST_UID", mailbox->last_uid);
     dlist_setnum64(dl, "HIGHESTMODSEQ", mailbox->highestmodseq);
@@ -596,7 +596,7 @@ EXPORTED struct dlist *backup_mailbox_to_dlist(
     dlist_setatom(dl, "OPTIONS", mailbox->options);
     dlist_setnum32(dl, "SYNC_CRC", mailbox->sync_crc);
     dlist_setnum32(dl, "SYNC_CRC_ANNOT", mailbox->sync_crc_annot);
-    dlist_setatom(dl, "QUOTAROOT", mailbox->quotaroot);
+    dlist_setname_standard(dl, "QUOTAROOT", mailbox->quotaroot);
     dlist_setnum64(dl, "XCONVMODSEQ", mailbox->xconvmodseq);
 
     /* if any flags or annotations from the index can't be parsed into dlist

@@ -148,6 +148,8 @@ struct dlist *dlist_newkvlist(struct dlist *parent, const char *name);
 
 struct dlist *dlist_setatom(struct dlist *parent, const char *name,
                             const char *val);
+struct dlist *dlist_setname_standard(struct dlist *parent, const char *name,
+                                     const char *val);
 struct dlist *dlist_setflag(struct dlist *parent, const char *name,
                             const char *val);
 struct dlist *dlist_setnum32(struct dlist *parent, const char *name,
@@ -188,6 +190,8 @@ struct dlist *dlist_updatefile(struct dlist *parent, const char *name,
 
 int dlist_getatom(struct dlist *parent, const char *name,
                   const char **valp);
+int dlist_getname_internal(struct dlist *parent, const char *name,
+                           char **valp);
 int dlist_getflag(struct dlist *parent, const char *name,
                   const char **valp);
 int dlist_getnum32(struct dlist *parent, const char *name,

@@ -857,13 +857,15 @@ static void cmd_authenticate(char *mech, char *resp)
 
 static int cmd_apply_mailbox(struct dlist *dl)
 {
-    const char *mboxname = NULL;
+    char *mboxname = NULL;
     struct open_backup *open = NULL;
     int r;
 
-    if (!dlist_getatom(dl, "MBOXNAME", &mboxname)) return IMAP_PROTOCOL_ERROR;
+    if (!dlist_getname_internal(dl, "MBOXNAME", &mboxname))
+        return IMAP_PROTOCOL_ERROR;
 
     mbname_t *mbname = mbname_from_intname(mboxname);
+    free(mboxname);
     r = backupd_open_backup(&open, mbname);
     mbname_free(&mbname);
 
@@ -875,11 +877,12 @@ static int cmd_apply_mailbox(struct dlist *dl)
 
 static int cmd_apply_unmailbox(struct dlist *dl)
 {
-    const char *mboxname = dl->sval;
+    char *mboxname = mboxname_from_standard(dl->sval);
     struct open_backup *open = NULL;
     int r;
 
     mbname_t *mbname = mbname_from_intname(mboxname);
+    free(mboxname);
     r = backupd_open_backup(&open, mbname);
     mbname_free(&mbname);
 
@@ -1045,7 +1048,7 @@ static int cmd_apply_reserve(struct dlist *dl)
 
     /* find the list of users this reserve applies to */
     for (di = ml->head; di; di = di->next) {
-        mbname_t *mbname = mbname_from_intname(di->sval);
+        mbname_t *mbname = mbname_from_stdname(di->sval);
         if (mbname_userid(mbname)) {
             strarray_append(&userids, mbname_userid(mbname));
             mbname_free(&mbname);
@@ -1108,8 +1111,8 @@ static int cmd_apply_rename(struct dlist *dl)
     if (!dlist_getatom(dl, "OLDMBOXNAME", &old_mboxname)) return IMAP_PROTOCOL_ERROR;
     if (!dlist_getatom(dl, "NEWMBOXNAME", &new_mboxname)) return IMAP_PROTOCOL_ERROR;
 
-    mbname_t *old = mbname_from_intname(old_mboxname);
-    mbname_t *new = mbname_from_intname(old_mboxname);
+    mbname_t *old = mbname_from_stdname(old_mboxname);
+    mbname_t *new = mbname_from_stdname(old_mboxname);
 
     if (strcmpnull(mbname_userid(old), mbname_userid(new)) == 0) {
         // same user, unremarkable folder rename *whew*
@@ -1134,14 +1137,15 @@ static int cmd_apply_rename(struct dlist *dl)
 
 static int cmd_apply_seen(struct dlist *dl)
 {
-    const char *userid = NULL;
+    char *userid = NULL;
     mbname_t *mbname = NULL;
     struct open_backup *open = NULL;
     int r;
 
-    if (!dlist_getatom(dl, "USERID", &userid)) return IMAP_PROTOCOL_ERROR;
+    if (!dlist_getname_internal(dl, "USERID", &userid)) return IMAP_PROTOCOL_ERROR;
 
     mbname = mbname_from_userid(userid);
+    free(userid);
     r = backupd_open_backup(&open, mbname);
     mbname_free(&mbname);
 
@@ -1154,16 +1158,22 @@ static int cmd_apply_seen(struct dlist *dl)
 
 static int cmd_apply_sub(struct dlist *dl)
 {
-    const char *userid = NULL;
-    const char *mboxname = NULL;
+    char *userid = NULL;
+    char *mboxname = NULL;
     mbname_t *mbname = NULL;
     struct open_backup *open = NULL;
     int r;
 
-    if (!dlist_getatom(dl, "USERID", &userid)) return IMAP_PROTOCOL_ERROR;
-    if (!dlist_getatom(dl, "MBOXNAME", &mboxname)) return IMAP_PROTOCOL_ERROR;
+    if (!dlist_getname_internal(dl, "USERID", &userid))
+        return IMAP_PROTOCOL_ERROR;
+    if (!dlist_getname_internal(dl, "MBOXNAME", &mboxname)) {
+        free(userid);
+        return IMAP_PROTOCOL_ERROR;
+    }
 
     mbname = mbname_from_userid(userid);
+    free(userid);
+    free(mboxname);
     r = backupd_open_backup(&open, mbname);
     mbname_free(&mbname);
 
@@ -1176,14 +1186,16 @@ static int cmd_apply_sub(struct dlist *dl)
 
 static int cmd_apply_sieve(struct dlist *dl)
 {
-    const char *userid = NULL;
+    char *userid = NULL;
     mbname_t *mbname = NULL;
     struct open_backup *open = NULL;
     int r;
 
-    if (!dlist_getatom(dl, "USERID", &userid)) return IMAP_PROTOCOL_ERROR;
+    if (!dlist_getname_internal(dl, "USERID", &userid))
+        return IMAP_PROTOCOL_ERROR;
 
     mbname = mbname_from_userid(userid);
+    free(userid);
     r = backupd_open_backup(&open, mbname);
     mbname_free(&mbname);
 
@@ -1336,7 +1348,7 @@ static int backupd_print_subscriptions(struct backup *backup)
 
     for (i = 0; i < list.count; i++) {
         const char *mboxname = strarray_nth(&list, i);
-        dlist_setatom(kl, "MBOXNAME", mboxname);
+        dlist_setname_standard(kl, "MBOXNAME", mboxname);
     }
 
     if (kl->head) {
@@ -1400,7 +1412,7 @@ static int cmd_get_mailbox(struct dlist *dl, int want_records)
 
     if (!dl->sval) return IMAP_PROTOCOL_BAD_PARAMETERS;
 
-    mbname = mbname_from_intname(dl->sval);
+    mbname = mbname_from_stdname(dl->sval);
     if (!mbname) return IMAP_INTERNAL;
 
     r = backupd_open_backup(&open, mbname);
@@ -1426,11 +1438,14 @@ static int cmd_get_meta(struct dlist *dl)
 {
     struct open_backup *open = NULL;
     mbname_t *mbname = NULL;
+    char *userid;
     int r;
 
     if (!dl->sval) return IMAP_PROTOCOL_BAD_PARAMETERS;
 
-    mbname = mbname_from_userid(dl->sval);
+    userid = mboxname_from_standard(dl->sval);
+    mbname = mbname_from_userid(userid);
+    free(userid);
     if (!mbname) return IMAP_INTERNAL;
 
     r = backupd_open_backup(&open, mbname);
@@ -1460,7 +1475,7 @@ static int is_mailboxes_single_user(struct dlist *dl)
     for (di = dl->head; di; di = di->next) {
         if (!di->sval) continue;
 
-        mbname_t *mbname = mbname_from_intname(di->sval);
+        mbname_t *mbname = mbname_from_stdname(di->sval);
 
         if (!userid) {
             userid = xstrdupnull(mbname_userid(mbname));
@@ -1490,7 +1505,9 @@ static void cmd_get(struct dlist *dl)
         struct open_backup *open = NULL;
 
         if (dl->sval) {
-            mbname = mbname_from_userid(dl->sval);
+            char *userid = mboxname_from_standard(dl->sval);
+            mbname = mbname_from_userid(userid);
+            free(userid);
             r = backupd_open_backup(&open, mbname);
             if (r) goto done;
 

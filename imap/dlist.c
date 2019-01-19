@@ -456,6 +456,16 @@ EXPORTED struct dlist *dlist_setatom(struct dlist *parent, const char *name, con
     return dl;
 }
 
+EXPORTED struct dlist *dlist_setname_standard(struct dlist *parent,
+                                              const char *name, const char *val)
+{
+    char *stdname = mboxname_to_standard(val);
+    struct dlist *dl = dlist_setatom(parent, name, stdname);
+
+    free(stdname);
+    return dl;
+}
+
 EXPORTED struct dlist *dlist_setflag(struct dlist *parent, const char *name, const char *val)
 {
     struct dlist *dl = dlist_child(parent, name);
@@ -1564,6 +1574,18 @@ EXPORTED int dlist_getatom(struct dlist *parent, const char *name, const char **
 {
     struct dlist *child = dlist_getchild(parent, name);
     return dlist_toatom(child, valp);
+}
+
+
+EXPORTED int dlist_getname_internal(struct dlist *parent, const char *name,
+                                    char **valp)
+{
+    const char *stdname;
+
+    if (!dlist_getatom(parent, name, &stdname)) return 0;
+
+    *valp = mboxname_from_standard(stdname);
+    return 1;
 }
 
 EXPORTED int dlist_getnum32(struct dlist *parent, const char *name, uint32_t *valp)
