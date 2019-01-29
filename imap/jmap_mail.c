@@ -1455,8 +1455,15 @@ static int _email_get_cid_cb(const conv_guidrec_t *rec, void *rock)
     if (rec->part) return 0;
     if (!rec->cid) return 0;
     /* Make sure we are allowed to read this mailbox */
-    if (d->checkacl && !jmap_hasrights_byname(d->req, rec->mboxname, ACL_READ))
-            return 0;
+    if (d->checkacl) {
+        mbentry_t *mbentry = NULL;
+        int r;
+
+        mboxlist_lookup_by_uniqueid(rec->mboxid, &mbentry, NULL);
+        r = mbentry && jmap_hasrights(d->req, mbentry, ACL_READ);
+        mboxlist_entry_free(&mbentry);
+        if (!r) return 0;
+    }
     d->cid = rec->cid;
     return IMAP_OK_COMPLETED;
 }
