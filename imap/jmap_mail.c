@@ -6439,8 +6439,8 @@ static void _email_append(jmap_req_t *req,
         if (mboxid && mboxid[0] == '#') {
             mboxid = jmap_lookup_id(req, mboxid + 1);
         }
-        if (!id) continue;
-        mbentry_t *mbentry = jmap_mbentry_by_uniqueid(req, id, /*tombstones*/0);
+        if (!mboxid) continue;
+        mbentry_t *mbentry = jmap_mbentry_by_uniqueid(req, mboxid, /*tombstones*/0);
         if (!mbentry || !jmap_hasrights(req, mbentry, ACL_LOOKUP)) {
             r = IMAP_MAILBOX_NONEXISTENT;
             goto done;
