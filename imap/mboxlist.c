@@ -4716,11 +4716,16 @@ static int _check_rec_cb(void *rock,
     return CYRUSDB_DONE;
 }
 
+struct upgrade_rock {
+    struct buf *namebuf;
+    struct txn **tid;
+};
+
 static int _upgrade_cb(void *rock,
                        const char *key, size_t keylen,
                        const char *data, size_t datalen)
 {
-    struct txn **tid = (struct txn **) rock;
+    struct upgrade_rock *urock = (struct upgrade_rock *) rock;
     mbentry_t *mbentry = NULL;
     int r;
 
@@ -4730,9 +4735,11 @@ static int _upgrade_cb(void *rock,
     r = mboxlist_parse_entry(&mbentry, NULL, 0, data, datalen);
     if (r) return r;
 
-    mbentry->name = xstrndup(key, keylen);
+    buf_setmap(urock->namebuf, key, keylen);
+    mbentry->name = mboxname_from_standard(buf_cstring(urock->namebuf));
+
     mbentry->legacy_dir = 1;
-    r = mboxlist_update_entry(mbentry->name, mbentry, tid);
+    r = mboxlist_update_entry(mbentry->name, mbentry, urock->tid);
 
     mboxlist_entry_free(&mbentry);
 
@@ -4745,6 +4752,7 @@ EXPORTED int mboxlist_upgrade(int *upgraded)
     struct buf buf = BUF_INITIALIZER;
     struct db *backup = NULL;
     struct txn *tid = NULL;
+    struct upgrade_rock urock = { &buf, &tid };
     char *fname;
 
     if (upgraded) *upgraded = 0;
@@ -4780,7 +4788,7 @@ EXPORTED int mboxlist_upgrade(int *upgraded)
     mboxlist_open(NULL);
 
     /* perform upgrade from backup to new db */
-    r = cyrusdb_foreach(backup, "", 0, NULL, _upgrade_cb, &tid, NULL);
+    r = cyrusdb_foreach(backup, "", 0, NULL, _upgrade_cb, &urock, NULL);
 
     r2 = cyrusdb_close(backup);
     if (r2) {
