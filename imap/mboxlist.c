@@ -256,6 +256,9 @@ static struct dlist *mboxlist_entry_dlist(const mbentry_t *mbentry)
     if (mbentry->acl)
         _write_acl(dl, mbentry->acl);
 
+    if (mbentry->legacy_dir)
+        dlist_setnum32(dl, "L", 1);
+
     return dl;
 }
 
@@ -452,6 +455,9 @@ static int parseentry_cb(int type, struct dlistsax_data *d)
             else if (!strcmp(key, "I")) {
                 rock->mbentry->uniqueid = xstrdupnull(d->data);
             }
+            else if (!strcmp(key, "L")) {
+                rock->mbentry->legacy_dir = 1;
+            }
             else if (!strcmp(key, "M")) {
                 rock->mbentry->mtime = atoi(d->data);
             }
@@ -485,6 +491,7 @@ static int parseentry_cb(int type, struct dlistsax_data *d)
  *  C  _c_reatedmodseq
  *  F: _f_oldermodseq
  *  I: unique_i_d
+ *  L: _l_egacydir
  *  M: _m_time
  *  N: _n_ame
  *  P: _p_artition
@@ -4724,6 +4731,7 @@ static int _upgrade_cb(void *rock,
     if (r) return r;
 
     mbentry->name = xstrndup(key, keylen);
+    mbentry->legacy_dir = 1;
     r = mboxlist_update_entry(mbentry->name, mbentry, tid);
 
     mboxlist_entry_free(&mbentry);
