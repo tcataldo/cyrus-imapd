@@ -907,10 +907,8 @@ static int setcalendars_update(jmap_req_t *req,
 /* Delete the calendar mailbox named mboxname for the userid in req. */
 static int setcalendars_destroy(jmap_req_t *req, const char *mboxname)
 {
-    if (!jmap_hasrights_byname(req, mboxname, DACL_READ))
-        return IMAP_NOTFOUND;
-    if (!jmap_hasrights_byname(req, mboxname, DACL_RMCOL))
-        return IMAP_PERMISSION_DENIED;
+    mbentry_t *mbentry = NULL;
+    int r = 0;
 
     char *userid = mboxname_to_userid(mboxname);
     struct caldav_db *db = caldav_open_userid(userid);
@@ -919,6 +917,13 @@ static int setcalendars_destroy(jmap_req_t *req, const char *mboxname)
         free(userid);
         return IMAP_INTERNAL;
     }
+
+    jmap_mboxlist_lookup(mboxname, &mbentry, NULL);
+    if (!mbentry || !jmap_hasrights(req, mbentry, DACL_READ))
+        r = IMAP_NOTFOUND;
+    else if (!jmap_hasrights(req, mbentry, DACL_RMCOL))
+        r = IMAP_PERMISSION_DENIED;
+
     /* XXX 
      * JMAP spec says that: "A calendar MAY be deleted that is currently
      * associated with one or more events. In this case, the events belonging
@@ -930,13 +935,14 @@ static int setcalendars_destroy(jmap_req_t *req, const char *mboxname)
      *
      * Need the Events API for this requirement.
      */
-    int r = caldav_delmbox(db, mboxname);
-    if (r) {
+    else if ((r = caldav_delmbox(db, DAV_KEY_MBE(mbentry)))) {
         syslog(LOG_ERR, "failed to delete mailbox from caldav_db: %s",
                 error_message(r));
         free(userid);
         return r;
     }
+    if (r) goto done;
+
     jmap_myrights_delete(req, mboxname);
 
     /* Remove from subscriptions db */
@@ -960,6 +966,8 @@ static int setcalendars_destroy(jmap_req_t *req, const char *mboxname)
 
     if (!r) r = caldav_update_shareacls(userid);
 
+  done:
+    mboxlist_entry_free(&mbentry);
     int rr = caldav_close(db);
     if (!r) r = rr;
 
@@ -1637,6 +1645,7 @@ static int getcalendarevents_cb(void *vrock, struct caldav_data *cdata)
         return 0;
 
     mbentry = jmap_mbentry_by_uniqueid(req, cdata->dav.mailbox, /*tombstones*/0);
+    if (!mbentry) jmap_mboxlist_lookup(cdata->dav.mailbox, &mbentry, NULL);
 
     /* Check mailbox ACL rights */
     if (!mbentry || !jmap_hasrights(req, mbentry, DACL_READ)) {
@@ -2739,6 +2748,7 @@ static int setcalendarevents_update(jmap_req_t *req,
     }
 
     mbentry = jmap_mbentry_by_uniqueid(req, cdata->dav.mailbox, /*tombstones*/0);
+    if (!mbentry) jmap_mboxlist_lookup(cdata->dav.mailbox, &mbentry, NULL);
 
     /* Check permissions. */
     if (!mbentry || !jmap_hasrights(req, mbentry, needrights)) {
@@ -2935,6 +2945,7 @@ static int setcalendarevents_destroy(jmap_req_t *req,
     }
 
     mbentry = jmap_mbentry_by_uniqueid(req, cdata->dav.mailbox, /*tombstones*/0);
+    if (!mbentry) jmap_mboxlist_lookup(cdata->dav.mailbox, &mbentry, NULL);
 
     /* Check permissions. */
     if (!mbentry || !jmap_hasrights(req, mbentry, DACL_READ)) {
@@ -3296,6 +3307,8 @@ static int geteventchanges_cb(void *vrock, struct caldav_data *cdata)
     mbentry_t *mbentry = jmap_mbentry_by_uniqueid(req, cdata->dav.mailbox,
                                                   /*tombstones*/0);
 
+    if (!mbentry) jmap_mboxlist_lookup(cdata->dav.mailbox, &mbentry, NULL);
+
     /* Check permissions */
     int rights = mbentry ? jmap_hasrights(req, mbentry, DACL_READ) : 0;
     mboxlist_entry_free(&mbentry);
@@ -3558,6 +3571,7 @@ static int eventquery_cb(void *vrock, struct caldav_data *cdata)
 
     mbentry_t *mbentry = jmap_mbentry_by_uniqueid(req, cdata->dav.mailbox,
                                                   /*tombstones*/0);
+    if (!mbentry) jmap_mboxlist_lookup(cdata->dav.mailbox, &mbentry, NULL);
 
     /* Check permissions */
     int rights = mbentry ? jmap_hasrights(req, mbentry, DACL_READ) : 0;
@@ -3755,7 +3769,7 @@ static int eventquery_search_run(jmap_req_t *req,
         }
 
         /* Fetch the CalDAV db record */
-        r = caldav_lookup_imapuid(db, mbentry->uniqueid, md->uid, &cdata, 0);
+        r = caldav_lookup_imapuid(db, DAV_KEY_MBE(mbentry), md->uid, &cdata, 0);
         mboxlist_entry_free(&mbentry);
         if (r) continue;
         else {
@@ -4284,6 +4298,7 @@ static void _calendarevent_copy(jmap_req_t *req,
     }
 
     mbentry = jmap_mbentry_by_uniqueid(req, cdata->dav.mailbox, /*tombstones*/0);
+    if (!mbentry) jmap_mboxlist_lookup(cdata->dav.mailbox, &mbentry, NULL);
 
     if (!mbentry || !jmap_hasrights(req, mbentry, DACL_READ)) {
         *set_err = json_pack("{s:s}", "type", "notFound");
