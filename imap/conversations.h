@@ -56,6 +56,15 @@
 #include "strarray.h"
 #include "util.h"
 
+#define CONV_GUID_KEY_MBOX(rec, mailbox) \
+    (rec->version < 2 ? mailbox->name : mailbox->uniqueid)
+
+#define CONV_FOLDER_KEY_MBOX(state, mailbox) \
+    (state->folders_byname ? mailbox->name : mailbox->uniqueid)
+
+#define CONV_FOLDER_KEY_MBE(state, mbentry) \
+    (!mbentry ? NULL : (state->folders_byname ? mbentry->name : mbentry->uniqueid))
+
 typedef bit64   conversation_id_t;
 #define CONV_FMT "%016llx"
 #define NULLCONVERSATION        (0ULL)
@@ -77,8 +86,9 @@ struct conversations_state {
     struct txn *txn;
     char *annotmboxname;
     strarray_t *counted_flags;
-    strarray_t *folder_ids;
+    strarray_t *folders;
     hash_table folderstatus;
+    int folders_byname;
     int trashfolder;
     char *trashmboxname;
     int is_shared;
@@ -116,11 +126,12 @@ struct conv_folder {
     uint32_t        prev_exists;
 };
 
-#define CONV_GUIDREC_VERSION 0x1 // (must be <= 127)
+#define CONV_GUIDREC_VERSION 0x2          // (must be <= 127)
+#define CONV_GUIDREC_BYNAME_VERSION 0x1   // last folders byname version
 
 struct conv_guidrec {
     uint32_t        foldernum;
-    const char      *mboxid;
+    const char      *mailbox;       // if version >= 2 mboxid, else mboxname
     uint32_t        uid;
     const char      *part;
     conversation_id_t cid;
@@ -170,7 +181,7 @@ struct conversation {
 #define CONVERSATION_INIT { 0, 0, 0, 0, 0, 0, 0, 0, {0}, NULL, NULL, NULL, NULL, 0, CONV_ISDIRTY }
 
 struct emailcounts {
-    const char *mboxid;
+    const char *mailbox;
     int ispost;
     int pre_emailexists;
     int pre_emailunseen;
@@ -235,10 +246,10 @@ extern conversation_id_t conversations_guid_cid_lookup(struct conversations_stat
 
 /* F record items */
 extern int conversation_getstatus(struct conversations_state *state,
-                                  const char *mboxid,
+                                  const char *mailbox,
                                   conv_status_t *status);
 extern int conversation_setstatus(struct conversations_state *state,
-                                  const char *mboxid,
+                                  const char *mailbox,
                                   const conv_status_t *status);
 extern int conversation_storestatus(struct conversations_state *state,
                                     const char *key, size_t keylen,
