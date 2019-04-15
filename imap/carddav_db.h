@@ -48,6 +48,7 @@
 
 #include "auth.h"
 #include "dav_db.h"
+#include "mboxlist.h"
 #include "strarray.h"
 #include "util.h"
 #include "vparse.h"
@@ -89,14 +90,14 @@ int carddav_close(struct carddav_db *carddavdb);
 /* lookup an entry from 'carddavdb' by resource
    (optionally inside a transaction for updates) */
 int carddav_lookup_resource(struct carddav_db *carddavdb,
-                           const char *mailbox, const char *resource,
+                           const mbentry_t *mbentry, const char *resource,
                            struct carddav_data **result,
                            int tombstones);
 
 /* lookup an entry from 'carddavdb' by mailbox and IMAP uid
    (optionally inside a transaction for updates) */
 int carddav_lookup_imapuid(struct carddav_db *carddavdb,
-                           const char *mailbox, int uid,
+                           const mbentry_t *mbentry, int uid,
                            struct carddav_data **result,
                            int tombstones);
 
@@ -109,21 +110,22 @@ int carddav_lookup_uid(struct carddav_db *carddavdb, const char *ical_uid,
    returns the groups its in (if any) */
 strarray_t *carddav_getemail(struct carddav_db *carddavdb, const char *key);
 strarray_t *carddav_getemail2details(struct carddav_db *carddavdb, const char *key,
-                                     const char *mboxname, int *ispinned);
+                                     const mbentry_t *mbentry, int *ispinned);
 strarray_t *carddav_getuid2groups(struct carddav_db *carddavdb, const char *key,
-                                  const char *mboxname, const char *otheruser);
+                                  const mbentry_t *mbentry, const char *otheruser);
 
 /* checks if a group exists (by id), optionally filtered by addressbook mailbox.
  * Looks up groups across addressbooks if mailbox is NULL.
    returns emails of its members (if any) */
-strarray_t *carddav_getgroup(struct carddav_db *carddavdb, const char *mailbox, const char *group);
+strarray_t *carddav_getgroup(struct carddav_db *carddavdb,
+                             const mbentry_t *mbentry, const char *group);
 
 /* get a list of groups the given uid is a member of */
 strarray_t *carddav_getuid_groups(struct carddav_db *carddavdb, const char *uid);
 
 /* process each entry of type 'kind' for 'mailbox' in 'carddavdb' with cb() */
 int carddav_get_cards(struct carddav_db *carddavdb,
-                      const char *mailbox, const char *vcard_uid, int kind,
+                      const mbentry_t *mbentry, const char *vcard_uid, int kind,
                       carddav_cb_t *cb, void *rock);
 
 /* Process each entry for 'carddavdb' with a modseq higher than oldmodseq,
@@ -132,11 +134,11 @@ int carddav_get_cards(struct carddav_db *carddavdb,
  * If kind is non-negative, only process entries of this kind.
  * If max_records is positive, only call cb for at most this entries. */
 int carddav_get_updates(struct carddav_db *carddavdb,
-                        modseq_t oldmodseq, const char *mailbox, int kind,
+                        modseq_t oldmodseq, const mbentry_t *mbentry, int kind,
                         int max_records, carddav_cb_t *cb, void *rock);
 
 /* process each entry for 'mailbox' in 'carddavdb' with cb() */
-int carddav_foreach(struct carddav_db *carddavdb, const char *mailbox,
+int carddav_foreach(struct carddav_db *carddavdb, const mbentry_t *mbentry,
                     carddav_cb_t *cb, void *rock);
 
 int carddav_write_jmapcache(struct carddav_db *carddavdb, int rowid,
@@ -153,7 +155,7 @@ int carddav_writecard(struct carddav_db *carddavdb, struct carddav_data *cdata,
 int carddav_delete(struct carddav_db *carddavdb, unsigned rowid);
 
 /* delete all entries for 'mailbox' from 'carddavdb' */
-int carddav_delmbox(struct carddav_db *carddavdb, const char *mailbox);
+int carddav_delmbox(struct carddav_db *carddavdb, const mbentry_t *mbentry);
 
 /* begin transaction */
 int carddav_begin(struct carddav_db *carddavdb);

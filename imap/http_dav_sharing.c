@@ -864,7 +864,7 @@ HIDDEN int notify_post(struct transaction_t *txn)
     webdavdb = webdav_open_mailbox(mailbox);
 
     /* Find message UID for the resource */
-    webdav_lookup_resource(webdavdb, DAV_KEY_MBOX(mailbox),
+    webdav_lookup_resource(webdavdb, txn->req_tgt.mbentry,
                            resource, &wdata, 0);
     if (!wdata->dav.imap_uid) {
         ret = HTTP_NOT_FOUND;
@@ -1029,7 +1029,7 @@ static int notify_put(struct transaction_t *txn, void *obj,
     if (!doc) return HTTP_FORBIDDEN;
 
     /* Find message UID for the resource */
-    webdav_lookup_resource(db, DAV_KEY_MBOX(mailbox), resource, &wdata, 0);
+    webdav_lookup_resource(db, txn->req_tgt.mbentry, resource, &wdata, 0);
 
     if (wdata->dav.imap_uid) {
         /* Fetch index record for the resource */

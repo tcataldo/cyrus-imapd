@@ -46,6 +46,7 @@
 
 #include "auth.h"
 #include "conversations.h"
+#include "dav_db.h"
 #include "hash.h"
 #include "jmap_util.h"
 #include "json_support.h"
@@ -171,6 +172,7 @@ extern int jmap_mboxlist_lookup(const char *name,
 /* fetch an mbentry by mailbox by uniqueid */
 extern mbentry_t *jmap_mbentry_by_uniqueid(jmap_req_t *req, const char *id,
                                            int include_tombstones);
+extern mbentry_t *jmap_mbentry_from_dav(struct dav_data *dav);
 
 /* Adds a JMAP sub request to be processed after req has
  * finished. Method must be a regular JMAP method name,

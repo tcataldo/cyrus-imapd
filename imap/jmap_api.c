@@ -152,6 +152,20 @@ HIDDEN mbentry_t *jmap_mbentry_by_uniqueid(jmap_req_t *req __attribute__((unused
     return mbentry;
 }
 
+HIDDEN mbentry_t *jmap_mbentry_from_dav(struct dav_data *dav)
+{
+    mbentry_t *mbentry = NULL;
+
+    if (dav->mailbox_byname) {
+        if (jmap_mboxlist_lookup(dav->mailbox, &mbentry, NULL)) return NULL;
+    }
+    else {
+        mbentry = jmap_mbentry_by_uniqueid(NULL, dav->mailbox, /*tombstones*/0);
+    }
+
+    return mbentry;
+}
+
 static json_t *extract_value(json_t *from, const char *path, ptrarray_t *refs);
 
 static json_t *extract_array_value(json_t *val, const char *idx,
