@@ -333,7 +333,7 @@ EXPORTED int index_open_mailbox(struct mailbox *mailbox, struct index_init *init
         if (state->want_dav) {
             /* User logged in using imapmagicplus token "dav" */
         }
-        else if (state->mailbox->mbtype == state->want_mbtype) {
+        else if (mbtype_isa(state->mailbox->mbtype) == state->want_mbtype) {
             /* Caller explicitly asks for this NONIMAP type */
         }
         else {

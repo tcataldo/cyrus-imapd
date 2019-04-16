@@ -6946,7 +6946,7 @@ int meth_put(struct transaction_t *txn, void *params)
     }
 
     /* Make sure mailbox type is correct */
-    if (txn->req_tgt.mbentry->mbtype != txn->req_tgt.namespace->mboxtype)
+    if (mbtype_isa(txn->req_tgt.mbentry->mbtype) != txn->req_tgt.namespace->mboxtype)
         return HTTP_FORBIDDEN;
 
     /* Make sure Content-Range isn't specified */

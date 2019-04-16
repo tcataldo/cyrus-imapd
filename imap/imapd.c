@@ -6848,7 +6848,7 @@ static void cmd_expunge(char *tag, char *sequence)
 static void cmd_create(char *tag, char *name, struct dlist *extargs, int localonly)
 {
     int r = 0;
-    int mbtype = 0;
+    int mbtype = MBTYPE_EMAIL;
     int options = 0;
     const char *partition = NULL;
     const char *server = NULL;
@@ -6871,9 +6871,9 @@ static void cmd_create(char *tag, char *name, struct dlist *extargs, int localon
     dlist_getatom(extargs, "SERVER", &server);
     dlist_getatom(extargs, "MAILBOXID", &uniqueid);
     if (dlist_getatom(extargs, "TYPE", &type)) {
-        if (!strcasecmp(type, "CALENDAR")) mbtype |= MBTYPE_CALENDAR;
-        else if (!strcasecmp(type, "COLLECTION")) mbtype |= MBTYPE_COLLECTION;
-        else if (!strcasecmp(type, "ADDRESSBOOK")) mbtype |= MBTYPE_ADDRESSBOOK;
+        if (!strcasecmp(type, "CALENDAR")) mbtype = MBTYPE_CALENDAR;
+        else if (!strcasecmp(type, "COLLECTION")) mbtype = MBTYPE_COLLECTION;
+        else if (!strcasecmp(type, "ADDRESSBOOK")) mbtype = MBTYPE_ADDRESSBOOK;
         else {
             r = IMAP_MAILBOX_BADTYPE;
             goto err;
@@ -13038,7 +13038,7 @@ static int perform_output(const char *extname, const mbentry_t *mbentry, struct 
     if (!imapd_userisadmin) {
         int mbtype = mbentry ? mbentry->mbtype : 0;
 
-        if (mbtype == MBTYPE_NETNEWS) return 0;
+        if ((mbtype & MBTYPES_MASK) == MBTYPE_NETNEWS) return 0;
         if ((mbtype & MBTYPE_INTERMEDIATE) &&
             !(rock->listargs->sel & LIST_SEL_INTERMEDIATES)) return 0;
         if (!(rock->listargs->sel & LIST_SEL_DAV)) {
