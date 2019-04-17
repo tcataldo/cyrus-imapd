@@ -203,8 +203,6 @@ EXPORTED const char *mboxlist_mbtype_to_string(uint32_t mbtype)
         buf_putc(&buf, 'z');
     if (mbtype & MBTYPE_INTERMEDIATE)
         buf_putc(&buf, 'i');
-    if (mbtype & MBTYPE_LEGACY_DIRS)
-        buf_putc(&buf, 'l');
 
     return buf_cstring(&buf);
 }
@@ -244,19 +242,30 @@ static struct dlist *mboxlist_entry_dlist(const mbentry_t *mbentry)
 
 EXPORTED char *mbentry_metapath(const struct mboxlist_entry *mbentry, int metatype, int isnew)
 {
+    uint32_t legacy_dirs = (mbentry->mbtype & MBTYPE_LEGACY_DIRS);
     return mboxname_metapath(mbentry->partition,
                              mbentry->name,
-                             mbentry->uniqueid,
+                             legacy_dirs ? NULL : mbentry->uniqueid,
                              metatype,
                              isnew);
 }
 
 EXPORTED char *mbentry_datapath(const struct mboxlist_entry *mbentry, uint32_t uid)
 {
+    uint32_t legacy_dirs = (mbentry->mbtype & MBTYPE_LEGACY_DIRS);
     return mboxname_datapath(mbentry->partition,
                              mbentry->name,
-                             mbentry->uniqueid,
+                             legacy_dirs ? NULL : mbentry->uniqueid,
                              uid);
+}
+
+EXPORTED char *mbentry_archivepath(const struct mboxlist_entry *mbentry, uint32_t uid)
+{
+    uint32_t legacy_dirs = (mbentry->mbtype & MBTYPE_LEGACY_DIRS);
+    return mboxname_archivepath(mbentry->partition,
+                                mbentry->name,
+                                legacy_dirs ? NULL : mbentry->uniqueid,
+                                uid);
 }
 
 static void mboxlist_name_to_key(const char *name, size_t len, struct buf *key)
@@ -2575,7 +2584,9 @@ EXPORTED int mboxlist_renamemailbox(const mbentry_t *mbentry,
 
         if (newmailbox) mailbox_delete(&newmailbox);
         if (partitionmove && newpartition)
-            mailbox_delete_cleanup(NULL, newpartition, newname, oldmailbox->uniqueid);
+            mailbox_delete_cleanup(NULL, newpartition, newname,
+                                   (oldmailbox->mbtype & MBTYPE_LEGACY_DIRS) ?
+                                   NULL : oldmailbox->uniqueid);
         mailbox_close(&oldmailbox);
     } else {
         if (newmailbox) {
@@ -2612,7 +2623,8 @@ EXPORTED int mboxlist_renamemailbox(const mbentry_t *mbentry,
         }
         else if (partitionmove) {
             char *oldpartition = xstrdup(oldmailbox->part);
-            char *olduniqueid = xstrdup(oldmailbox->uniqueid);
+            char *olduniqueid = (oldmailbox->mbtype & MBTYPE_LEGACY_DIRS) ?
+                NULL : xstrdup(oldmailbox->uniqueid);
             if (config_auditlog)
                 syslog(LOG_NOTICE, "auditlog: partitionmove sessionid=<%s> "
                        "mailbox=<%s> uniqueid=<%s> oldpart=<%s> newpart=<%s>",
