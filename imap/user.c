@@ -143,6 +143,24 @@ EXPORTED const char *user_sieve_path(const char *user)
     free(inboxname);
 
     if (r) sieve_path[0] = '\0';
+    else if (mbentry->mbtype & MBTYPE_LEGACY_DIRS) {
+        char hash, *domain;
+ 
+        if (config_virtdomains && (domain = strchr(user, '@'))) {
+            char d = (char) dir_hash_c(domain+1, config_fulldirhash);
+            *domain = '\0';  /* split user@domain */
+            hash = (char) dir_hash_c(user, config_fulldirhash);
+            snprintf(sieve_path, sizeof(sieve_path), "%s%s%c/%s/%c/%s",
+                     config_getstring(IMAPOPT_SIEVEDIR),
+                     FNAME_DOMAINDIR, d, domain+1, hash, user);
+            *domain = '@';  /* reassemble user@domain */
+        }
+        else {
+            hash = (char) dir_hash_c(user, config_fulldirhash);
+            snprintf(sieve_path, sizeof(sieve_path), "%s/%c/%s",
+                     config_getstring(IMAPOPT_SIEVEDIR), hash, user);
+        }
+    }
     else {
         mboxname_id_hash(sieve_path, sizeof(sieve_path),
                          config_getstring(IMAPOPT_SIEVEDIR), mbentry->uniqueid);
