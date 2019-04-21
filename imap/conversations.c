@@ -205,8 +205,12 @@ static int _init_counted(struct conversations_state *state,
 int _saxfolder(int type, struct dlistsax_data *d)
 {
     struct conversations_open *open = (struct conversations_open *)d->rock;
-    if (type == DLISTSAX_STRING)
-        strarray_append(open->s.folders, d->data);
+    if (type == DLISTSAX_STRING) {
+        if (open->s.folders_byname)
+            strarray_appendm(open->s.folders, mboxname_from_standard(d->data));
+        else
+            strarray_append(open->s.folders, d->data);
+    }
     return 0;
 }
 
@@ -219,7 +223,13 @@ static int write_folders(struct conversations_state *state)
 
     for (i = 0; i < state->folders->count; i++) {
         const char *fname = strarray_nth(state->folders, i);
-        dlist_setatom(dl, NULL, fname);
+
+        if (state->folders_byname) {
+            char *stdname = mboxname_to_standard(fname);
+            dlist_setatom(dl, NULL, stdname);
+            free(stdname);
+        }
+        else dlist_setatom(dl, NULL, fname);
     }
 
     dlist_printbuf(dl, 0, &buf);
