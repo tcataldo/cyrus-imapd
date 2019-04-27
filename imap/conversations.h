@@ -88,6 +88,7 @@ struct conversations_state {
     int folders_byname;
     int trashfolder;
     char *trashmboxname;
+    char *trashmboxid;
     int is_shared;
     char *path;
 };
