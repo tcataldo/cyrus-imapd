@@ -51,6 +51,11 @@
 
 #include "search_part.h"
 
+#define FNAME_XAPIANSUFFIX   "xapianactive"
+
+extern int xapian_basedir(const char *tier, const char *mboxname,
+                          const char *part, const char *root, char **basedir);
+
 typedef int (*search_hit_cb_t)(const char *mboxname, uint32_t uidvalidity,
                                uint32_t uid, const strarray_t *partids,
                                void *rock);

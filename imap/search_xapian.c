@@ -80,7 +80,6 @@
 #define INDEXEDDB_KEY_VERSION       2 /* version string for entry keys */
 #define INDEXEDDB_FNAME         "/cyrus.indexed.db"
 #define XAPIAN_DIRNAME          "/xapian"
-#define ACTIVEFILE_METANAME     "xapianactive"
 #define XAPIAN_NAME_LOCK_PREFIX "$XAPIAN$"
 
 /* Name of columns */
@@ -101,8 +100,6 @@ struct segment
 };
 
 static const char *xapian_rootdir(const char *tier, const char *partition);
-static int xapian_basedir(const char *tier, const char *mboxname, const char *part,
-                          const char *root, char **basedir);
 
 /* ====================================================================== */
 static int check_config(char **errstr)
@@ -225,7 +222,7 @@ static char *activefile_fname(const char *mboxname)
 {
     char *userid = mboxname_to_userid(mboxname);
     if (!userid) return NULL;
-    char *res = user_hash_meta(userid, ACTIVEFILE_METANAME);
+    char *res = user_hash_meta(userid, FNAME_XAPIANSUFFIX);
     free(userid);
     return res;
 }
@@ -2181,7 +2178,7 @@ static const char *xapian_rootdir(const char *tier, const char *partition)
 }
 
 /* Returns in *basedirp a new string which must be free()d */
-static int xapian_basedir(const char *tier,
+HIDDEN int xapian_basedir(const char *tier,
                           const char *mboxname, const char *partition,
                           const char *root, char **basedirp)
 {
