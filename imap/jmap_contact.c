@@ -1773,7 +1773,8 @@ gotvalue:
     json_object_set_new(obj, "uid", json_string(cdata->vcard_uid));
 
     json_object_set_new(obj, "addressbookId",
-                        json_string(strrchr(cdata->dav.mailbox, '.')+1));
+                        json_string(strrchr(cdata->dav.mailbox,
+                                            INT_HIERSEP_CHAR)+1));
 
     json_array_append_new(crock->get->list, obj);
     crock->rows++;
