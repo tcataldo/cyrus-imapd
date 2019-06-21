@@ -221,7 +221,7 @@ static int write_folders(struct conversations_state *state)
     int r;
     int i;
 
-    for (i = 0; i < state->folders->count; i++) {
+    for (i = 0; i < strarray_size(state->folders); i++) {
         const char *fname = strarray_nth(state->folders, i);
 
         if (state->folders_byname) {
@@ -289,13 +289,13 @@ static int folder_number(struct conversations_state *state,
 
 EXPORTED uint32_t conversations_num_folders(struct conversations_state *state)
 {
-    return strarray_size(state->folder_names);
+    return strarray_size(state->folders);
 }
 
 EXPORTED const char* conversations_folder_name(struct conversations_state *state,
                                                uint32_t foldernum)
 {
-    return strarray_safenth(state->folder_names, foldernum);
+    return strarray_safenth(state->folders, foldernum);
 }
 
 EXPORTED size_t conversations_estimate_emailcount(struct conversations_state *state)
@@ -303,8 +303,8 @@ EXPORTED size_t conversations_estimate_emailcount(struct conversations_state *st
     int i;
     size_t count = 0;
     conv_status_t status;
-    for (i = 0; i < strarray_size(state->folder_names); i++) {
-        const char *mboxname = strarray_nth(state->folder_names, i);
+    for (i = 0; i < strarray_size(state->folders); i++) {
+        const char *mboxname = strarray_nth(state->folders, i);
         int r = conversation_getstatus(state, mboxname, &status);
         if (r) continue;
         count += status.emailexists;
@@ -395,7 +395,7 @@ EXPORTED int conversations_open_path(const char *fname, const char *userid, int 
     }
 
     /* create the status cache */
-    construct_hash_table(&open->s.folderstatus, open->s.folders->count/4+4, 0);
+    construct_hash_table(&open->s.folderstatus, strarray_size(open->s.folders)/4+4, 0);
 
     *statep = &open->s;
 
@@ -1978,6 +1978,7 @@ static int _guid_one(const char *item,
     /* mboxname */
     int r = parseuint32(item, &err, &res);
     if (r || err != p) return IMAP_INTERNAL;
+    rec.foldernum = res;
     rec.mailbox = strarray_safenth(frock->state->folders, res);
     if (!rec.mailbox) return IMAP_INTERNAL;
 
@@ -2227,7 +2228,7 @@ static int conversations_guid_setitem(struct conversations_state *state,
         char version = (state->folders_byname) ?
             CONV_GUIDREC_BYNAME_VERSION : CONV_GUIDREC_VERSION;
 
-        buf_putc(&val, 0x80 | version);
+        buf_putc(&val, (char)(0x80 | version));
         buf_appendbit64(&val, cid);
         buf_appendbit32(&val, system_flags);
         buf_appendbit32(&val, internal_flags);

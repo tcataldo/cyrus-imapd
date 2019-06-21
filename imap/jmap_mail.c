@@ -4380,20 +4380,31 @@ struct email_get_snoozed_rock {
 static int _email_get_snoozed_cb(const conv_guidrec_t *rec, void *vrock)
 {
     struct email_get_snoozed_rock *rock = vrock;
+    mbentry_t *mbentry = NULL;
+    int r;
 
     if (rec->part) return 0;
 
-    if (!jmap_hasrights_byname(rock->req, rec->mboxname, ACL_READ|ACL_LOOKUP))
-        return 0;
+    r = mboxlist_lookup_by_guidrec(rec, &mbentry, NULL);
+
+    static int needrights = ACL_READ|ACL_LOOKUP;
+    if (r || !jmap_hasrights(rock->req, mbentry, needrights)) {
+        r = 0;
+        goto done;
+    }
 
     if (FLAG_INTERNAL_SNOOZED ==
         (rec->internal_flags & (FLAG_INTERNAL_SNOOZED|FLAG_INTERNAL_EXPUNGED))) {
         /* Fetch snoozed annotation */
-        rock->snoozed = jmap_fetch_snoozed(rec->mboxname, rec->uid);
+        rock->snoozed = jmap_fetch_snoozed(mbentry->name, rec->uid);
     }
 
     /* Short-circuit the foreach if we find a snoozed message */
-    return (rock->snoozed != NULL);
+    r = (rock->snoozed != NULL);
+
+ done:
+    mboxlist_entry_free(&mbentry);
+    return r;
 }
 
 static void _email_parse_wantheaders(json_t *jprops,

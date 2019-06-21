@@ -128,8 +128,8 @@ struct conv_folder {
 #define CONV_GUIDREC_BYNAME_VERSION 0x1   // last folders byname version
 
 struct conv_guidrec {
-    uint32_t        foldernum;
     const char      *mailbox;       // if version >= 2 mboxid, else mboxname
+    uint32_t        foldernum;
     uint32_t        uid;
     const char      *part;
     conversation_id_t cid;
