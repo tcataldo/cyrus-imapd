@@ -364,11 +364,10 @@ static int getgroups_cb(void *rock, struct carddav_data *cdata)
         mailbox_close(&crock->mailbox);
         r = mailbox_open_irl(mbentry->name, &crock->mailbox);
     }
-    mboxlist_entry_free(&mbentry);
-    if (r) return r;
+    if (r) goto done;
 
     r = mailbox_find_index_record(crock->mailbox, cdata->dav.imap_uid, &record);
-    if (r) return r;
+    if (r) goto done;
 
     /* Load message containing the resource and parse vcard data */
     struct vparse_card *vcard = record_to_vcard(crock->mailbox, &record);
@@ -376,7 +375,8 @@ static int getgroups_cb(void *rock, struct carddav_data *cdata)
         syslog(LOG_ERR, "record_to_vcard failed for record %u:%s",
                 cdata->dav.imap_uid, crock->mailbox->name);
         vparse_free_card(vcard);
-        return IMAP_INTERNAL;
+        r = IMAP_INTERNAL;
+        goto done;
     }
 
     obj = jmap_group_from_vcard(vcard->objects);
@@ -391,10 +391,10 @@ gotvalue:
     json_object_set_new(obj, "uid", json_string(cdata->vcard_uid));
 
     json_object_set_new(obj, "addressbookId",
-                        json_string(strrchr(crock->mailbox->name,
+                        json_string(strrchr(mbentry->name,
                                             INT_HIERSEP_CHAR)+1));
 
-    xhref = jmap_xhref(crock->mailbox->name, cdata->dav.resource);
+    xhref = jmap_xhref(mbentry->name, cdata->dav.resource);
     json_object_set_new(obj, "x-href", json_string(xhref));
     free(xhref);
 
@@ -402,7 +402,10 @@ gotvalue:
 
     crock->rows++;
 
-    return 0;
+ done:
+    mboxlist_entry_free(&mbentry);
+
+    return r;
 }
 
 static const jmap_property_t contact_props[] = {
@@ -1775,11 +1778,10 @@ static int getcontacts_cb(void *rock, struct carddav_data *cdata)
         mailbox_close(&crock->mailbox);
         r = mailbox_open_irl(mbentry->name, &crock->mailbox);
     }
-    mboxlist_entry_free(&mbentry);
-    if (r) return r;
+    if (r) goto done;
 
     r = mailbox_find_index_record(crock->mailbox, cdata->dav.imap_uid, &record);
-    if (r) return r;
+    if (r) goto done;
 
     /* Load message containing the resource and parse vcard data */
     struct vparse_card *vcard = record_to_vcard(crock->mailbox, &record);
@@ -1787,7 +1789,8 @@ static int getcontacts_cb(void *rock, struct carddav_data *cdata)
         syslog(LOG_ERR, "record_to_vcard failed for record %u:%s",
                 cdata->dav.imap_uid, crock->mailbox->name);
         vparse_free_card(vcard);
-        return IMAP_INTERNAL;
+        r = IMAP_INTERNAL;
+        goto done;
     }
 
     /* Convert the VCARD to a JMAP contact. */
@@ -1798,7 +1801,7 @@ gotvalue:
     jmap_filterprops(obj, crock->get->props);
 
     if (jmap_wantprop(crock->get->props, "x-href")) {
-        char *xhref = jmap_xhref(cdata->dav.mailbox, cdata->dav.resource);
+        char *xhref = jmap_xhref(mbentry->name, cdata->dav.resource);
         json_object_set_new(obj, "x-href", json_string(xhref));
         free(xhref);
     }
@@ -1807,11 +1810,14 @@ gotvalue:
     json_object_set_new(obj, "uid", json_string(cdata->vcard_uid));
 
     json_object_set_new(obj, "addressbookId",
-                        json_string(strrchr(cdata->dav.mailbox,
+                        json_string(strrchr(mbentry->name,
                                             INT_HIERSEP_CHAR)+1));
 
     json_array_append_new(crock->get->list, obj);
     crock->rows++;
+
+ done:
+    mboxlist_entry_free(&mbentry);
 
     return 0;
 }

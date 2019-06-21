@@ -1708,13 +1708,13 @@ gotevent:
 
     /* Add JMAP-only fields. */
     if (jmap_wantprop(rock->get->props, "x-href")) {
-        char *xhref = jmap_xhref(rock->mailbox->name, cdata->dav.resource);
+        char *xhref = jmap_xhref(mbentry->name, cdata->dav.resource);
         json_object_set_new(jsevent, "x-href", json_string(xhref));
         free(xhref);
     }
     if (jmap_wantprop(rock->get->props, "calendarId")) {
         json_object_set_new(jsevent, "calendarId",
-                            json_string(strrchr(rock->mailbox->name,
+                            json_string(strrchr(mbentry->name,
                                                 INT_HIERSEP_CHAR)+1));
     }
 
