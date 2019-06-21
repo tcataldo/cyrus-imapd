@@ -49,7 +49,7 @@
 #include "mailbox.h"
 #include "util.h"
 
-#define DB_MBOXID_VERSION 9     /* first version with records by mboxid */
+#define DB_MBOXID_VERSION 10    /* first version with records by mboxid */
 
 struct dav_data {
     unsigned rowid;
