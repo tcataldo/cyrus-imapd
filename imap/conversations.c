@@ -222,14 +222,14 @@ static int write_folders(struct conversations_state *state)
     int i;
 
     for (i = 0; i < strarray_size(state->folders); i++) {
-        const char *fname = strarray_nth(state->folders, i);
+        const char *folder = strarray_nth(state->folders, i);
 
         if (state->folders_byname) {
-            char *stdname = mboxname_to_standard(fname);
+            char *stdname = mboxname_to_standard(folder);
             dlist_setatom(dl, NULL, stdname);
             free(stdname);
         }
-        else dlist_setatom(dl, NULL, fname);
+        else dlist_setatom(dl, NULL, folder);
     }
 
     dlist_printbuf(dl, 0, &buf);
@@ -295,7 +295,19 @@ EXPORTED uint32_t conversations_num_folders(struct conversations_state *state)
 EXPORTED const char* conversations_folder_name(struct conversations_state *state,
                                                uint32_t foldernum)
 {
-    return strarray_safenth(state->folders, foldernum);
+    const char *folder = strarray_safenth(state->folders, foldernum);
+    if (state->folders_byname) {
+        return folder;
+    }
+    else {
+        static char fname[MAX_MAILBOX_NAME+1];
+        mbentry_t *mbentry = NULL;
+
+        mboxlist_lookup_by_uniqueid(folder, &mbentry, NULL);
+        strlcpy(fname, mbentry->name, sizeof(fname));
+        mboxlist_entry_free(&mbentry);
+        return fname;
+    }
 }
 
 EXPORTED size_t conversations_estimate_emailcount(struct conversations_state *state)
@@ -304,8 +316,8 @@ EXPORTED size_t conversations_estimate_emailcount(struct conversations_state *st
     size_t count = 0;
     conv_status_t status;
     for (i = 0; i < strarray_size(state->folders); i++) {
-        const char *mboxname = strarray_nth(state->folders, i);
-        int r = conversation_getstatus(state, mboxname, &status);
+        const char *folder = strarray_nth(state->folders, i);
+        int r = conversation_getstatus(state, folder, &status);
         if (r) continue;
         count += status.emailexists;
     }
