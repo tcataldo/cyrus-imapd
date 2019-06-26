@@ -11,6 +11,9 @@
 //#include "message.h"      /* for VECTOR_SIZE */
 #include "xmalloc.h"
 
+#define HS                      INT_HIERSEP_STR
+#define DS                      INT_DOMAINSEP_STR
+
 #define DBDIR   "test-dbdir"
 #define DBNAME  DBDIR "/conversations.db"
 #define DBNAME2 DBDIR "/conversations2.db"
@@ -374,9 +377,9 @@ static void test_folder_rename(void)
 {
     int r;
     struct conversations_state *state = NULL;
-    static const char FOLDER1[] = "fnarp.com!user.smurf";
-    static const char FOLDER2[] = "fnarp.com!user.smurf.foo";
-    static const char FOLDER3[] = "fnarp.com!user.smurf.bar";
+    static const char FOLDER1[] = "fnarp.com" DS "user" HS "smurf";
+    static const char FOLDER2[] = "fnarp.com" DS "user" HS "smurf" HS "foo";
+    static const char FOLDER3[] = "fnarp.com" DS "user" HS "smurf" HS "bar";
     static const char C_MSGID1[] = "<0008.1288854309@example.com>";
     static const char C_MSGID2[] = "<0009.1288854309@example.com>";
     static const char C_MSGID3[] = "<0010.1288854309@example.com>";
@@ -468,9 +471,9 @@ static void test_folders(void)
 {
     int r;
     struct conversations_state *state = NULL;
-    static const char FOLDER1[] = "foobar.com!user.smurf";
-    static const char FOLDER2[] = "foobar.com!user.smurf.foo bar";
-    static const char FOLDER3[] = "foobar.com!user.smurf.quux.foonly";
+    static const char FOLDER1[] = "foobar.com" DS "user" HS "smurf";
+    static const char FOLDER2[] = "foobar.com" DS "user" HS "smurf" HS "foo bar";
+    static const char FOLDER3[] = "foobar.com" DS "user" HS "smurf" HS "quux" HS "foonly";
     static const char FOLDER_N1[] = "aaa not here";
     static const char FOLDER_N2[] = "zzz not here";
     static const conversation_id_t C_CID = 0x10abcdef23456789ULL;
@@ -809,9 +812,9 @@ static void test_folder_ordering(void)
 {
     int r;
     struct conversations_state *state = NULL;
-    static const char FOLDER1[] = "foobar.com!user.smurf";
-    static const char FOLDER2[] = "foobar.com!user.smurf.foo bar";
-    static const char FOLDER3[] = "foobar.com!user.smurf.quux.foonly";
+    static const char FOLDER1[] = "foobar.com" DS "user" HS "smurf";
+    static const char FOLDER2[] = "foobar.com" DS "user" HS "smurf" HS "foo bar";
+    static const char FOLDER3[] = "foobar.com" DS "user" HS "smurf" HS "quux" HS "foonly";
     static const conversation_id_t C_CID = 0x10abcdef23456789ULL;
     conversation_t *conv;
     conv_folder_t *folder1;
@@ -959,7 +962,7 @@ static void __test_senders(void)
 {
     int r;
     struct conversations_state *state = NULL;
-    static const char FOLDER[] = "foobar.com!user.smurf";
+    static const char FOLDER[] = "foobar.com" DS "user" HS "smurf";
     static const char NAME1[] = "Smurf 1";
     static const char MAILBOX1[] = "smurf";
     static const char DOMAIN1[] = "foobar.com";
