@@ -152,6 +152,10 @@ EXPORTED void mboxlist_entry_free(mbentry_t **mbentryptr)
 
     free(mbentry->legacy_specialuse);
 
+    synonym_t *syn;
+    while ((syn = ptrarray_pop(&mbentry->synonyms))) {
+        free(syn);
+    }
     ptrarray_fini(&mbentry->synonyms);
 
     free(mbentry);
@@ -984,7 +988,6 @@ static int mboxlist_update_entry(const char *name,
                     synonym_t *syn = ptrarray_nth(&oldid->synonyms, i);
                     add_synonym(synonyms,
                                 syn->name, syn->mtime, syn->foldermodseq);
-                    free(syn);
                 }
 
                 if (strcmp(name, oldid->name)) {
