@@ -5789,7 +5789,7 @@ EXPORTED int mailbox_copy_files(struct mailbox *mailbox, const char *newpart,
 
 
 HIDDEN int mailbox_rename_nocopy(struct mailbox *oldmailbox,
-                                 const char *newname)
+                                 const char *newname, int silent)
 {
     char quotaroot[MAX_MAILBOX_BUFFER];
     int hasquota = quota_findroot(quotaroot, sizeof(quotaroot), newname);
@@ -5819,6 +5819,9 @@ HIDDEN int mailbox_rename_nocopy(struct mailbox *oldmailbox,
             r = conversations_rename_folder(oldcstate, oldmailbox->name, newname);
         }
     }
+
+    /* unless on a replica, bump the modseq */
+    if (!silent) mailbox_modseq_dirty(oldmailbox);
 
     return r;
 }
