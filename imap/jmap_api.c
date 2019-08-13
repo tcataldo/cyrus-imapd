@@ -1482,7 +1482,7 @@ HIDDEN char *jmap_xhref(const char *mboxname, const char *resource)
     }
 
     /* Collection */
-    buf_printf(&buf, "%s", strrchr(mboxname, '.')+1);
+    buf_printf(&buf, "%s", strrchr(mboxname, INT_HIERSEP_CHAR)+1);
 
     if (resource)
         buf_printf(&buf, "/%s", resource);
