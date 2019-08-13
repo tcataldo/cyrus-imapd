@@ -207,6 +207,12 @@ EXPORTED const char *mboxlist_mbtype_to_string(uint32_t mbtype)
     case MBTYPE_NETNEWS:
         buf_putc(&buf, 'n');
         break;
+    case MBTYPE_SUBMISSION:
+        buf_putc(&buf, 's');
+        break;
+    case MBTYPE_PUSHSUBSCRIPTION:
+        buf_putc(&buf, 'p');
+        break;
     case MBTYPE_COLLECTION:
         buf_putc(&buf, 'b');
         break;
@@ -215,12 +221,6 @@ EXPORTED const char *mboxlist_mbtype_to_string(uint32_t mbtype)
         break;
     case MBTYPE_ADDRESSBOOK:
         buf_putc(&buf, 'a');
-        break;
-    case MBTYPE_SUBMISSION:
-        buf_putc(&buf, 's');
-        break;
-    case MBTYPE_PUSHSUBSCRIPTION:
-        buf_putc(&buf, 'p');
         break;
     }
 
