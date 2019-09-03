@@ -3476,7 +3476,7 @@ static int mboxlist_do_find(struct find_rock *rock, const strarray_t *patterns)
         mboxname_todeleted(inboxcopy, prefix, /*withtime*/0);
         free(inboxcopy);
         size_t prefixlen = strlen(prefix);
-        prefix[prefixlen] = '.';
+        prefix[prefixlen] = INT_HIERSEP_CHAR;
 
         rock->mb_category = MBNAME_OWNERDELETED;
 
