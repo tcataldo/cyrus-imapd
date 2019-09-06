@@ -3867,7 +3867,7 @@ static int mboxlist_do_find(struct find_rock *rock, const strarray_t *patterns)
         if (r) goto done;
 
         struct buf key = BUF_INITIALIZER;
-        mboxlist_name_to_key(prefix, prefixlen+1, &key);
+        mboxlist_name_to_key(prefix, prefixlen+1, rock->issubs, userid, &key);
 
         r = cyrusdb_foreach(rock->db, buf_base(&key), buf_len(&key),
                             &find_p, &find_cb, rock, NULL);
