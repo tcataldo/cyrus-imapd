@@ -1561,13 +1561,13 @@ HIDDEN int mboxname_policycheck(const char *name)
     // empty name
     if (!name[0]) return IMAP_MAILBOX_BADNAME;
     // leading dot
-    if (name[0] == '.') return IMAP_MAILBOX_BADNAME;
+    if (name[0] == INT_HIERSEP_CHAR) return IMAP_MAILBOX_BADNAME;
     // leading ~
     if (name[0] == '~') return IMAP_MAILBOX_BADNAME;
     // trailing dot
-    if (name[namelen-1] == '.') return IMAP_MAILBOX_BADNAME;
+    if (name[namelen-1] == INT_HIERSEP_CHAR) return IMAP_MAILBOX_BADNAME;
     // double dot (zero length path item)
-    if (strstr(name, "..")) return IMAP_MAILBOX_BADNAME;
+    if (strstr(name, INT_HIERSEP_STR INT_HIERSEP_STR)) return IMAP_MAILBOX_BADNAME;
     // non-" " whitespace
     if (strchr(name, '\r')) return IMAP_MAILBOX_BADNAME;
     if (strchr(name, '\n')) return IMAP_MAILBOX_BADNAME;
@@ -1575,11 +1575,11 @@ HIDDEN int mboxname_policycheck(const char *name)
     // top level user
     if (!strcmp(name, "user")) return IMAP_MAILBOX_BADNAME;
     // special users
-    if (!strcmp(name, "user.anyone")) return IMAP_MAILBOX_BADNAME;
-    if (!strcmp(name, "user.anonymous")) return IMAP_MAILBOX_BADNAME;
+    if (!strcmp(name, "user" INT_HIERSEP_STR "anyone")) return IMAP_MAILBOX_BADNAME;
+    if (!strcmp(name, "user" INT_HIERSEP_STR "anonymous")) return IMAP_MAILBOX_BADNAME;
     // redundant but explicit ban on userids starting with '%'
     // (would conflict with backups of shared mailboxes)
-    if (!strncmp(name, "user.%", 6)) return IMAP_MAILBOX_BADNAME;
+    if (!strncmp(name, "user" INT_HIERSEP_STR "%", 6)) return IMAP_MAILBOX_BADNAME;
 
     while (*name) {
         if (*name == '&') {
