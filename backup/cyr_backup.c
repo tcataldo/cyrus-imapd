@@ -356,7 +356,7 @@ int main(int argc, char **argv)
                               BACKUP_OPEN_BLOCK, BACKUP_OPEN_NOCREATE);
         break;
     case CYRBU_MODE_MBOXNAME:
-        mbname = mbname_from_intname(backup_name);
+        mbname = mbname_from_stdname(backup_name);
         if (!mbname) usage();
         r = backup_open(&backup, mbname,
                         BACKUP_OPEN_BLOCK, BACKUP_OPEN_NOCREATE);
@@ -538,7 +538,7 @@ static int cmd_show_mailboxes(struct backup *backup,
 
         /* or it could be an mboxname */
         if (!mailbox) {
-            mbname_t *mbname = mbname_from_intname(arg);
+            mbname_t *mbname = mbname_from_stdname(arg);
             if (!mbname) continue;
             mailbox = backup_get_mailbox_by_name(backup, mbname,
                                                  BACKUP_MAILBOX_ALL_RECORDS);
