@@ -5846,7 +5846,7 @@ int propfind_by_collection(const mbentry_t *mbentry, void *rock)
     if ((rights & fctx->reqd_privs) != fctx->reqd_privs) goto done;
 
     /* We only match known types */
-    if (!(mbentry->mbtype & fctx->req_tgt->namespace->mboxtype)) goto done;
+    if (mbentry->mbtype != fctx->req_tgt->namespace->mboxtype) goto done;
 
     p = strrchr(mboxname, INT_HIERSEP_CHAR);
     if (!p) goto done;
